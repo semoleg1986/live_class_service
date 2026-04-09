@@ -5,6 +5,7 @@ export type LiveClassConfig = {
   maxStudents: number;
   maxParticipants: number;
   authIssuer: string;
+  authAudience: string;
   authJwksUrl: string;
   redisUrl: string;
   outboxStream: string;
@@ -39,6 +40,7 @@ export default (): { liveClass: LiveClassConfig } => ({
       11,
     ),
     authIssuer: process.env.LIVE_CLASS_AUTH_ISSUER ?? 'auth_service',
+    authAudience: process.env.LIVE_CLASS_AUTH_AUDIENCE ?? 'platform_clients',
     authJwksUrl:
       process.env.LIVE_CLASS_AUTH_JWKS_URL ??
       'http://localhost:8000/.well-known/jwks.json',

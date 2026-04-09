@@ -10,6 +10,7 @@ import {
 @Injectable()
 export class JwksAccessTokenVerifier implements AccessTokenVerifierPort {
   private readonly issuer: string;
+  private readonly audience: string;
   private readonly jwksUrl: string;
   private readonly jwksResolver: ReturnType<typeof createRemoteJWKSet>;
 
@@ -17,6 +18,10 @@ export class JwksAccessTokenVerifier implements AccessTokenVerifierPort {
     this.issuer = this.configService.get<string>(
       'liveClass.authIssuer',
       'auth_service',
+    );
+    this.audience = this.configService.get<string>(
+      'liveClass.authAudience',
+      'platform_clients',
     );
     this.jwksUrl = this.configService.get<string>(
       'liveClass.authJwksUrl',
@@ -29,7 +34,18 @@ export class JwksAccessTokenVerifier implements AccessTokenVerifierPort {
     try {
       const verified = await jwtVerify(token, this.jwksResolver, {
         issuer: this.issuer,
+        audience: this.audience,
         algorithms: ['EdDSA'],
+        requiredClaims: [
+          'iss',
+          'aud',
+          'sub',
+          'jti',
+          'roles',
+          'iat',
+          'exp',
+          'typ',
+        ],
       });
       return this.mapClaims(verified.payload);
     } catch {
@@ -39,10 +55,15 @@ export class JwksAccessTokenVerifier implements AccessTokenVerifierPort {
 
   private mapClaims(payload: JWTPayload): AccessTokenClaims {
     const accountId = String(payload.sub ?? '').trim();
+    const tokenType = String(payload.typ ?? '').trim();
     const rolesRaw = payload.roles;
     const roles = Array.isArray(rolesRaw)
       ? rolesRaw.map((role) => String(role).trim()).filter(Boolean)
       : [];
+
+    if (tokenType !== 'access') {
+      throw new UnauthorizedException('JWT typ должен быть равен access.');
+    }
 
     if (!accountId || roles.length === 0) {
       throw new UnauthorizedException(

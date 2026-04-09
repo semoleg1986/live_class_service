@@ -89,10 +89,13 @@ Auth handshake:
 Для production требуется JWT верификация по JWKS:
 
 - `LIVE_CLASS_AUTH_ISSUER`
+- `LIVE_CLASS_AUTH_AUDIENCE` (по умолчанию `platform_clients`)
 - `LIVE_CLASS_AUTH_JWKS_URL`
 
-Текущий guard — skeleton (декодирует payload без проверки подписи).
-Перед production обязательна полноценная верификация подписи и `exp/iat/iss`.
+Сервис проверяет подпись и обязательные claims access token:
+
+- `iss`, `aud`, `sub`, `jti`, `roles`, `iat`, `exp`, `typ`
+- `typ` должен быть равен `access`.
 
 ## Инфраструктура
 
@@ -105,4 +108,4 @@ Auth handshake:
 1. Подключить реальный mediasoup worker/router/transport.
 2. Добавить persistence для rooms/participants в PostgreSQL.
 3. Добавить Redis adapter для multi-instance signaling.
-4. Добавить JWT JWKS verifier (как в других сервисах платформы).
+4. Добавить кэширование/rotation стратегию JWKS для повышенной отказоустойчивости.
