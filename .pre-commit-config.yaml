@@ -1,0 +1,24 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+
+  - repo: local
+    hooks:
+      - id: lint
+        name: lint
+        entry: npm run lint
+        language: system
+        pass_filenames: false
+      - id: format-check
+        name: format-check
+        entry: npm run format:check
+        language: system
+        pass_filenames: false
+
