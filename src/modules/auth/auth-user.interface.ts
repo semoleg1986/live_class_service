@@ -2,4 +2,6 @@ import { AccessTokenClaims } from '../../application/ports/access-token-verifier
 
 export type AuthUser = AccessTokenClaims & {
   accessToken: string;
+  requestId?: string;
+  correlationId?: string;
 };

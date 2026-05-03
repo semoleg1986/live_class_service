@@ -94,7 +94,8 @@ export class LiveRoomFacade {
           courseId: snapshot.courseId,
           actorAccountId: command.actorAccountId,
           actorRoles: command.actorRoles,
-          accessToken: command.accessToken
+          accessToken: command.accessToken,
+          correlationId: command.correlationId
         });
       }
       const aggregate = LiveRoomAggregate.restore(snapshot);

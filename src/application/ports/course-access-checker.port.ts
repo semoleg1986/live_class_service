@@ -3,6 +3,7 @@ export type CourseJoinAccessCheckInput = {
   actorAccountId: string;
   actorRoles: string[];
   accessToken: string;
+  correlationId?: string;
 };
 
 export interface CourseAccessCheckerPort {

@@ -211,7 +211,8 @@ describe('LiveRoomFacade (unit)', () => {
       courseId: 'course-1',
       actorAccountId: 'student-1',
       actorRoles: ['student'],
-      accessToken: 'token-student-1'
+      accessToken: 'token-student-1',
+      correlationId: undefined
     });
     expect(saveMock.mock.calls.at(-1)?.[2][0].eventType).toBe('participant_joined');
     expect(saveMock.mock.calls.at(-1)?.[2][0].payload).toEqual({ role: 'student' });

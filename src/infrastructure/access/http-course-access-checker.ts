@@ -33,7 +33,8 @@ export class HttpCourseAccessChecker implements CourseAccessCheckerPort {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${input.accessToken}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(input.correlationId ? { 'X-Correlation-ID': input.correlationId } : {})
         },
         body: JSON.stringify({
           course_id: input.courseId,

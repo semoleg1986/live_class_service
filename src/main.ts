@@ -6,9 +6,11 @@ import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app.module';
 import { ApplicationErrorFilter } from './modules/common/application-error.filter';
+import { installHttpObservability } from './modules/common/http-observability';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+  installHttpObservability(app);
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,

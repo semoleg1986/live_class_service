@@ -17,7 +17,8 @@ describe('LiveRoomService (unit)', () => {
       accountId: 'teacher-1',
       roles: ['teacher'],
       tokenId: null,
-      accessToken: 'test-token'
+      accessToken: 'test-token',
+      correlationId: 'corr-live-001'
     };
 
     await service.createRoom(
@@ -55,6 +56,7 @@ describe('LiveRoomService (unit)', () => {
       actorAccountId: 'teacher-1',
       actorRoles: ['teacher'],
       accessToken: 'test-token',
+      correlationId: 'corr-live-001',
       roleOverride: 'student',
       expectedVersion: 1
     });

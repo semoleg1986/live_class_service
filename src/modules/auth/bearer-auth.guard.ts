@@ -30,7 +30,9 @@ export class BearerAuthGuard implements CanActivate {
     const token = authHeader.slice('Bearer '.length).trim();
     request.user = {
       ...(await this.verifier.verifyAccessToken(token)),
-      accessToken: token
+      accessToken: token,
+      requestId: request.headers['x-request-id'],
+      correlationId: request.headers['x-correlation-id']
     };
 
     return true;

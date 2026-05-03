@@ -13,6 +13,7 @@ import { CourseAccessCheckerPort } from '../../src/application/ports/course-acce
 import { ApplicationAccessDeniedError } from '../../src/application/shared/errors';
 import { BearerAuthGuard } from '../../src/modules/auth/bearer-auth.guard';
 import { ApplicationErrorFilter } from '../../src/modules/common/application-error.filter';
+import { installHttpObservability } from '../../src/modules/common/http-observability';
 
 @Injectable()
 class FakeBearerAuthGuard implements CanActivate {
@@ -88,6 +89,7 @@ describeIntegration('LiveRoomController (e2e)', () => {
         forbidNonWhitelisted: true
       })
     );
+    installHttpObservability(app);
     app.useGlobalFilters(new ApplicationErrorFilter());
     await app.init();
   });
@@ -208,10 +210,16 @@ describeIntegration('LiveRoomController (e2e)', () => {
 
     const conflict = await asUser(app, 'student-4', ['student'])
       .post(`/v1/live/rooms/${roomId}/join`)
+      .set('X-Request-ID', 'req-live-conflict-001')
+      .set('X-Correlation-ID', 'corr-live-conflict-001')
       .send({ expectedVersion: 1 })
       .expect(409);
 
     expect(conflict.body.error).toBe('Conflict');
+    expect(conflict.body.request_id).toBe('req-live-conflict-001');
+    expect(conflict.body.correlation_id).toBe('corr-live-conflict-001');
+    expect(conflict.headers['x-request-id']).toBe('req-live-conflict-001');
+    expect(conflict.headers['x-correlation-id']).toBe('corr-live-conflict-001');
   });
 
   it('запрещает student читать timeline комнаты', async () => {
@@ -259,5 +267,20 @@ describeIntegration('LiveRoomController (e2e)', () => {
     expect(response.text).toContain('live_room_attendance_seconds_total');
     expect(response.text).toContain('live_room_open_rooms');
     expect(response.text).toContain('live_room_active_participants');
+  });
+
+  it('echoes request and correlation ids on success responses', async () => {
+    const response = await asUser(app, 'teacher-7', ['teacher'])
+      .post('/v1/live/rooms')
+      .set('X-Request-ID', 'req-live-create-001')
+      .set('X-Correlation-ID', 'corr-live-create-001')
+      .send({
+        courseId: 'course-7',
+        lessonId: 'lesson-7'
+      })
+      .expect(201);
+
+    expect(response.headers['x-request-id']).toBe('req-live-create-001');
+    expect(response.headers['x-correlation-id']).toBe('corr-live-create-001');
   });
 });
