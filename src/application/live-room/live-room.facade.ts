@@ -2,26 +2,25 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 
+import { CourseAccessCheckerPort } from '../ports/course-access-checker.port';
 import { LiveRoomAggregate } from '../../domain/live-room/live-room.aggregate';
 import { LiveRoomEvent } from '../../domain/live-room/live-room-event.types';
 import { LiveRoomPolicy } from '../../domain/live-room/live-room.policy';
 import { LiveRoomSnapshot } from '../../domain/live-room/live-room.types';
-import {
-  InvariantViolationError,
-  NotFoundError,
-} from '../../domain/shared/errors';
+import { InvariantViolationError, NotFoundError } from '../../domain/shared/errors';
 import { LiveRoomRepositoryPort } from '../ports/live-room-repository.port';
 import {
+  ApplicationAccessDeniedError,
   ApplicationConflictError,
   ApplicationNotFoundError,
-  ApplicationValidationError,
+  ApplicationValidationError
 } from '../shared/errors';
 import {
   CloseLiveRoomCommand,
   CreateLiveRoomCommand,
   JoinLiveRoomCommand,
   KickFromLiveRoomCommand,
-  LeaveLiveRoomCommand,
+  LeaveLiveRoomCommand
 } from './live-room.commands';
 
 @Injectable()
@@ -29,16 +28,15 @@ export class LiveRoomFacade {
   constructor(
     @Inject('LIVE_ROOM_REPOSITORY')
     private readonly repository: LiveRoomRepositoryPort,
-    private readonly configService: ConfigService,
+    @Inject('COURSE_ACCESS_CHECKER')
+    private readonly courseAccessChecker: CourseAccessCheckerPort,
+    private readonly configService: ConfigService
   ) {}
 
   async createRoom(command: CreateLiveRoomCommand): Promise<LiveRoomSnapshot> {
     try {
       const nowIso = new Date().toISOString();
-      const defaultMax = this.configService.get<number>(
-        'liveClass.maxParticipants',
-        11,
-      );
+      const defaultMax = this.configService.get<number>('liveClass.maxParticipants', 11);
 
       const aggregate = LiveRoomAggregate.create({
         roomId: randomUUID(),
@@ -47,7 +45,7 @@ export class LiveRoomFacade {
         teacherAccountId: command.actorAccountId,
         actorRoles: command.actorRoles,
         participantsLimit: command.participantsLimit ?? defaultMax,
-        nowIso,
+        nowIso
       });
 
       const snapshot = aggregate.toSnapshot();
@@ -61,9 +59,9 @@ export class LiveRoomFacade {
           payload: {
             courseId: snapshot.courseId,
             lessonId: snapshot.lessonId,
-            participantsLimit: snapshot.participantsLimit,
-          },
-        }),
+            participantsLimit: snapshot.participantsLimit
+          }
+        })
       ]);
       return snapshot;
     } catch (error) {
@@ -86,16 +84,22 @@ export class LiveRoomFacade {
   async joinRoom(command: JoinLiveRoomCommand): Promise<LiveRoomSnapshot> {
     try {
       const snapshot = await this.getRoom(command.roomId);
-      this.ensureExpectedVersion(
-        snapshot.version,
-        command.expectedVersion,
-      );
+      this.ensureExpectedVersion(snapshot.version, command.expectedVersion);
+      const effectiveRole = command.roleOverride ?? command.actorRoles[0] ?? 'student';
+      if (effectiveRole === 'student') {
+        await this.courseAccessChecker.ensureCanJoinCourse({
+          courseId: snapshot.courseId,
+          actorAccountId: command.actorAccountId,
+          actorRoles: command.actorRoles,
+          accessToken: command.accessToken
+        });
+      }
       const aggregate = LiveRoomAggregate.restore(snapshot);
 
       aggregate.join({
         accountId: command.actorAccountId,
-        role: command.roleOverride ?? command.actorRoles[0] ?? 'student',
-        nowIso: new Date().toISOString(),
+        role: effectiveRole,
+        nowIso: new Date().toISOString()
       });
 
       const updated = aggregate.toSnapshot();
@@ -107,9 +111,9 @@ export class LiveRoomFacade {
           actorAccountId: command.actorAccountId,
           occurredAt: updated.updatedAt,
           payload: {
-            role: command.roleOverride ?? command.actorRoles[0] ?? 'student',
-          },
-        }),
+            role: effectiveRole
+          }
+        })
       ]);
       return updated;
     } catch (error) {
@@ -120,15 +124,12 @@ export class LiveRoomFacade {
   async leaveRoom(command: LeaveLiveRoomCommand): Promise<LiveRoomSnapshot> {
     try {
       const snapshot = await this.getRoom(command.roomId);
-      this.ensureExpectedVersion(
-        snapshot.version,
-        command.expectedVersion,
-      );
+      this.ensureExpectedVersion(snapshot.version, command.expectedVersion);
       const aggregate = LiveRoomAggregate.restore(snapshot);
 
       aggregate.leave({
         accountId: command.actorAccountId,
-        nowIso: new Date().toISOString(),
+        nowIso: new Date().toISOString()
       });
 
       const updated = aggregate.toSnapshot();
@@ -139,8 +140,8 @@ export class LiveRoomFacade {
           eventType: 'participant_left',
           actorAccountId: command.actorAccountId,
           occurredAt: updated.updatedAt,
-          payload: {},
-        }),
+          payload: {}
+        })
       ]);
       return updated;
     } catch (error) {
@@ -151,17 +152,14 @@ export class LiveRoomFacade {
   async kickFromRoom(command: KickFromLiveRoomCommand): Promise<LiveRoomSnapshot> {
     try {
       const snapshot = await this.getRoom(command.roomId);
-      this.ensureExpectedVersion(
-        snapshot.version,
-        command.expectedVersion,
-      );
+      this.ensureExpectedVersion(snapshot.version, command.expectedVersion);
       const aggregate = LiveRoomAggregate.restore(snapshot);
 
       aggregate.kick({
         actorAccountId: command.actorAccountId,
         actorRoles: command.actorRoles,
         participantAccountId: command.participantAccountId,
-        nowIso: new Date().toISOString(),
+        nowIso: new Date().toISOString()
       });
 
       const updated = aggregate.toSnapshot();
@@ -173,9 +171,9 @@ export class LiveRoomFacade {
           actorAccountId: command.actorAccountId,
           occurredAt: updated.updatedAt,
           payload: {
-            participantAccountId: command.participantAccountId,
-          },
-        }),
+            participantAccountId: command.participantAccountId
+          }
+        })
       ]);
       return updated;
     } catch (error) {
@@ -186,16 +184,13 @@ export class LiveRoomFacade {
   async closeRoom(command: CloseLiveRoomCommand): Promise<LiveRoomSnapshot> {
     try {
       const snapshot = await this.getRoom(command.roomId);
-      this.ensureExpectedVersion(
-        snapshot.version,
-        command.expectedVersion,
-      );
+      this.ensureExpectedVersion(snapshot.version, command.expectedVersion);
       const aggregate = LiveRoomAggregate.restore(snapshot);
 
       aggregate.close({
         actorAccountId: command.actorAccountId,
         actorRoles: command.actorRoles,
-        nowIso: new Date().toISOString(),
+        nowIso: new Date().toISOString()
       });
 
       const updated = aggregate.toSnapshot();
@@ -206,8 +201,8 @@ export class LiveRoomFacade {
           eventType: 'room_closed',
           actorAccountId: command.actorAccountId,
           occurredAt: updated.updatedAt,
-          payload: {},
-        }),
+          payload: {}
+        })
       ]);
       return updated;
     } catch (error) {
@@ -227,13 +222,9 @@ export class LiveRoomFacade {
       LiveRoomPolicy.ensureCanViewEvents(
         input.actorAccountId,
         input.actorRoles,
-        room.teacherAccountId,
+        room.teacherAccountId
       );
-      return this.repository.getEventsByRoomId(
-        input.roomId,
-        input.fromVersion,
-        input.limit,
-      );
+      return this.repository.getEventsByRoomId(input.roomId, input.fromVersion, input.limit);
     } catch (error) {
       this.mapDomainError(error);
     }
@@ -246,19 +237,16 @@ export class LiveRoomFacade {
     if (error instanceof InvariantViolationError) {
       throw new ApplicationValidationError(error.message);
     }
+    if (error instanceof ApplicationAccessDeniedError) {
+      throw error;
+    }
     throw error;
   }
 
-  private ensureExpectedVersion(
-    currentVersion: number,
-    expectedVersion?: number,
-  ): void {
-    if (
-      expectedVersion !== undefined &&
-      expectedVersion !== currentVersion
-    ) {
+  private ensureExpectedVersion(currentVersion: number, expectedVersion?: number): void {
+    if (expectedVersion !== undefined && expectedVersion !== currentVersion) {
       throw new ApplicationConflictError(
-        `Версия комнаты изменилась: ожидалась ${expectedVersion}, текущая ${currentVersion}.`,
+        `Версия комнаты изменилась: ожидалась ${expectedVersion}, текущая ${currentVersion}.`
       );
     }
   }
@@ -266,12 +254,12 @@ export class LiveRoomFacade {
   private async saveOrThrowConflict(
     snapshot: LiveRoomSnapshot,
     expectedVersion: number | null,
-    events: LiveRoomEvent[],
+    events: LiveRoomEvent[]
   ): Promise<void> {
     const saved = await this.repository.save(snapshot, expectedVersion, events);
     if (!saved) {
       throw new ApplicationConflictError(
-        'Конкурентное изменение комнаты. Обновите данные и повторите запрос.',
+        'Конкурентное изменение комнаты. Обновите данные и повторите запрос.'
       );
     }
   }
@@ -279,7 +267,7 @@ export class LiveRoomFacade {
   private newEvent(input: Omit<LiveRoomEvent, 'eventId'>): LiveRoomEvent {
     return {
       eventId: randomUUID(),
-      ...input,
+      ...input
     };
   }
 }

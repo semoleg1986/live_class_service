@@ -3,7 +3,7 @@ import {
   ExecutionContext,
   Inject,
   Injectable,
-  UnauthorizedException,
+  UnauthorizedException
 } from '@nestjs/common';
 
 import { AccessTokenVerifierPort } from '../../application/ports/access-token-verifier.port';
@@ -13,7 +13,7 @@ import { AuthUser } from './auth-user.interface';
 export class BearerAuthGuard implements CanActivate {
   constructor(
     @Inject('ACCESS_TOKEN_VERIFIER')
-    private readonly verifier: AccessTokenVerifierPort,
+    private readonly verifier: AccessTokenVerifierPort
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -28,7 +28,10 @@ export class BearerAuthGuard implements CanActivate {
     }
 
     const token = authHeader.slice('Bearer '.length).trim();
-    request.user = await this.verifier.verifyAccessToken(token);
+    request.user = {
+      ...(await this.verifier.verifyAccessToken(token)),
+      accessToken: token
+    };
 
     return true;
   }

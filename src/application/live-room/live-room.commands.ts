@@ -10,6 +10,7 @@ export type JoinLiveRoomCommand = {
   roomId: string;
   actorAccountId: string;
   actorRoles: string[];
+  accessToken: string;
   roleOverride?: string;
   expectedVersion?: number;
 };

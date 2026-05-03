@@ -21,7 +21,7 @@ export class LiveRoomService {
       lessonId: dto.lessonId,
       actorAccountId: user.accountId,
       actorRoles: user.roles,
-      participantsLimit: dto.participantsLimit,
+      participantsLimit: dto.participantsLimit
     });
   }
 
@@ -32,67 +32,56 @@ export class LiveRoomService {
   async getRoomEvents(
     roomId: string,
     user: AuthUser,
-    query: GetRoomEventsQueryDto,
+    query: GetRoomEventsQueryDto
   ): Promise<LiveRoomEvent[]> {
     return this.facade.getRoomEvents({
       roomId,
       actorAccountId: user.accountId,
       actorRoles: user.roles,
       fromVersion: query.fromVersion,
-      limit: query.limit,
+      limit: query.limit
     });
   }
 
-  async joinRoom(
-    roomId: string,
-    user: AuthUser,
-    dto: JoinRoomDto,
-  ): Promise<LiveRoomSnapshot> {
+  async joinRoom(roomId: string, user: AuthUser, dto: JoinRoomDto): Promise<LiveRoomSnapshot> {
     return this.facade.joinRoom({
       roomId,
       actorAccountId: user.accountId,
       actorRoles: user.roles,
+      accessToken: user.accessToken,
       roleOverride: dto.role,
-      expectedVersion: dto.expectedVersion,
+      expectedVersion: dto.expectedVersion
     });
   }
 
-  async leaveRoom(
-    roomId: string,
-    user: AuthUser,
-    dto: LeaveRoomDto,
-  ): Promise<LiveRoomSnapshot> {
+  async leaveRoom(roomId: string, user: AuthUser, dto: LeaveRoomDto): Promise<LiveRoomSnapshot> {
     return this.facade.leaveRoom({
       roomId,
       actorAccountId: user.accountId,
-      expectedVersion: dto.expectedVersion,
+      expectedVersion: dto.expectedVersion
     });
   }
 
   async kickFromRoom(
     roomId: string,
     user: AuthUser,
-    dto: KickFromRoomDto,
+    dto: KickFromRoomDto
   ): Promise<LiveRoomSnapshot> {
     return this.facade.kickFromRoom({
       roomId,
       actorAccountId: user.accountId,
       actorRoles: user.roles,
       participantAccountId: dto.participantAccountId,
-      expectedVersion: dto.expectedVersion,
+      expectedVersion: dto.expectedVersion
     });
   }
 
-  async closeRoom(
-    roomId: string,
-    user: AuthUser,
-    dto: CloseRoomDto,
-  ): Promise<LiveRoomSnapshot> {
+  async closeRoom(roomId: string, user: AuthUser, dto: CloseRoomDto): Promise<LiveRoomSnapshot> {
     return this.facade.closeRoom({
       roomId,
       actorAccountId: user.accountId,
       actorRoles: user.roles,
-      expectedVersion: dto.expectedVersion,
+      expectedVersion: dto.expectedVersion
     });
   }
 }

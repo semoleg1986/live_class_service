@@ -1,21 +1,18 @@
-import {
-  ArgumentsHost,
-  Catch,
-  ExceptionFilter,
-  HttpStatus,
-} from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
 
 import {
+  ApplicationAccessDeniedError,
   ApplicationConflictError,
   ApplicationNotFoundError,
-  ApplicationValidationError,
+  ApplicationValidationError
 } from '../../application/shared/errors';
 
 @Catch(
   ApplicationValidationError,
   ApplicationNotFoundError,
   ApplicationConflictError,
+  ApplicationAccessDeniedError
 )
 export class ApplicationErrorFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
@@ -25,7 +22,7 @@ export class ApplicationErrorFilter implements ExceptionFilter {
       response.status(HttpStatus.BAD_REQUEST).json({
         statusCode: HttpStatus.BAD_REQUEST,
         error: 'Bad Request',
-        message: exception.message,
+        message: exception.message
       });
       return;
     }
@@ -34,7 +31,7 @@ export class ApplicationErrorFilter implements ExceptionFilter {
       response.status(HttpStatus.NOT_FOUND).json({
         statusCode: HttpStatus.NOT_FOUND,
         error: 'Not Found',
-        message: exception.message,
+        message: exception.message
       });
       return;
     }
@@ -43,7 +40,16 @@ export class ApplicationErrorFilter implements ExceptionFilter {
       response.status(HttpStatus.CONFLICT).json({
         statusCode: HttpStatus.CONFLICT,
         error: 'Conflict',
-        message: exception.message,
+        message: exception.message
+      });
+      return;
+    }
+
+    if (exception instanceof ApplicationAccessDeniedError) {
+      response.status(HttpStatus.FORBIDDEN).json({
+        statusCode: HttpStatus.FORBIDDEN,
+        error: 'Forbidden',
+        message: exception.message
       });
     }
   }
