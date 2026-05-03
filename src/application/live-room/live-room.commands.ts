@@ -11,6 +11,7 @@ export type JoinLiveRoomCommand = {
   actorAccountId: string;
   actorRoles: string[];
   accessToken: string;
+  requestId?: string;
   correlationId?: string;
   roleOverride?: string;
   expectedVersion?: number;

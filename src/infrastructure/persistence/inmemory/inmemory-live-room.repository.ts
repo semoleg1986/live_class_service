@@ -37,6 +37,20 @@ export class InMemoryLiveRoomRepository implements LiveRoomRepositoryPort {
     return true;
   }
 
+  async appendAuditEvents(
+    roomId: string,
+    expectedVersion: number,
+    events: LiveRoomEvent[]
+  ): Promise<boolean> {
+    const current = this.rooms.get(roomId);
+    if (!current || current.version !== expectedVersion) {
+      return false;
+    }
+
+    this.appendEvents(roomId, events);
+    return true;
+  }
+
   async getById(roomId: string): Promise<LiveRoomSnapshot | null> {
     const room = this.rooms.get(roomId);
     if (!room) {

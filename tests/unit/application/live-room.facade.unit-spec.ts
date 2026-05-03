@@ -41,6 +41,9 @@ describe('LiveRoomFacade (unit)', () => {
       save: jest.fn(
         async (_room, _expectedVersion, _events) => true
       ) as LiveRoomRepositoryPort['save'],
+      appendAuditEvents: jest.fn(
+        async (_roomId, _expectedVersion, _events) => true
+      ) as LiveRoomRepositoryPort['appendAuditEvents'],
       getById: jest.fn(async (_roomId) => null) as LiveRoomRepositoryPort['getById'],
       getEventsByRoomId: jest.fn(
         async (_roomId, _fromVersion, _limit) => []
@@ -58,6 +61,7 @@ describe('LiveRoomFacade (unit)', () => {
       repo,
       checker,
       metrics,
+      appendAuditEventsMock: repo.appendAuditEvents as unknown as jest.Mock,
       saveMock: repo.save as unknown as jest.Mock,
       getByIdMock: repo.getById as unknown as jest.Mock,
       getEventsByRoomIdMock: repo.getEventsByRoomId as unknown as jest.Mock,
@@ -101,7 +105,8 @@ describe('LiveRoomFacade (unit)', () => {
   });
 
   it('maps validation and save-conflict branches', async () => {
-    const { facade, getByIdMock, saveMock, ensureCanJoinCourseMock } = build();
+    const { facade, getByIdMock, saveMock, appendAuditEventsMock, ensureCanJoinCourseMock } =
+      build();
 
     getByIdMock.mockResolvedValue(snapshot({ status: 'closed' }));
     await expect(
@@ -122,9 +127,21 @@ describe('LiveRoomFacade (unit)', () => {
         roomId: 'room-1',
         actorAccountId: 'student-1',
         actorRoles: ['student'],
-        accessToken: 'token-student-1'
+        accessToken: 'token-student-1',
+        requestId: 'req-live-denied-001',
+        correlationId: 'corr-live-denied-001'
       })
     ).rejects.toBeInstanceOf(ApplicationAccessDeniedError);
+    expect(appendAuditEventsMock).toHaveBeenCalledTimes(1);
+    expect(appendAuditEventsMock.mock.calls[0][2][0].eventType).toBe('participant_join_denied');
+    expect(appendAuditEventsMock.mock.calls[0][2][0].payload).toEqual({
+      role: 'student',
+      courseId: 'course-1',
+      reason: 'Нет активного доступа к курсу для входа в live-комнату.',
+      reasonCode: 'course_access_denied',
+      requestId: 'req-live-denied-001',
+      correlationId: 'corr-live-denied-001'
+    });
 
     getByIdMock.mockResolvedValue(
       snapshot({

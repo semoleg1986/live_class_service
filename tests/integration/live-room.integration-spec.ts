@@ -25,6 +25,8 @@ class FakeBearerAuthGuard implements CanActivate {
         roles: string[];
         tokenId: string | null;
         accessToken: string;
+        requestId?: string;
+        correlationId?: string;
       };
     }>();
 
@@ -36,7 +38,9 @@ class FakeBearerAuthGuard implements CanActivate {
       accountId,
       roles,
       tokenId: null,
-      accessToken: `token-for-${accountId}`
+      accessToken: `token-for-${accountId}`,
+      requestId: req.headers['x-request-id'],
+      correlationId: req.headers['x-correlation-id']
     };
     return true;
   }
@@ -253,10 +257,28 @@ describeIntegration('LiveRoomController (e2e)', () => {
 
     const denied = await asUser(app, 'student-denied', ['student'])
       .post(`/v1/live/rooms/${roomId}/join`)
+      .set('X-Request-ID', 'req-live-denied-001')
+      .set('X-Correlation-ID', 'corr-live-denied-001')
       .send({ expectedVersion: 1 })
       .expect(403);
 
     expect(denied.body.message).toContain('Нет активного доступа к курсу');
+
+    const events = await asUser(app, 'teacher-4', ['teacher'])
+      .get(`/v1/live/rooms/${roomId}/events`)
+      .expect(200);
+
+    expect(events.body).toHaveLength(2);
+    expect(events.body[1].eventType).toBe('participant_join_denied');
+    expect(events.body[1].actorAccountId).toBe('student-denied');
+    expect(events.body[1].payload).toEqual({
+      role: 'student',
+      courseId: 'course-4',
+      reason: 'Нет активного доступа к курсу для входа в live-комнату.',
+      reasonCode: 'course_access_denied',
+      requestId: 'req-live-denied-001',
+      correlationId: 'corr-live-denied-001'
+    });
   });
 
   it('публикует live metrics endpoint', async () => {

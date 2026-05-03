@@ -1,6 +1,7 @@
 export type LiveRoomEventType =
   | 'room_created'
   | 'participant_joined'
+  | 'participant_join_denied'
   | 'participant_left'
   | 'participant_kicked'
   | 'attendance_updated'

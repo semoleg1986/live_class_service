@@ -7,6 +7,11 @@ export interface LiveRoomRepositoryPort {
     expectedVersion: number | null,
     events: LiveRoomEvent[]
   ): Promise<boolean>;
+  appendAuditEvents(
+    roomId: string,
+    expectedVersion: number,
+    events: LiveRoomEvent[]
+  ): Promise<boolean>;
   getById(roomId: string): Promise<LiveRoomSnapshot | null>;
   getEventsByRoomId(roomId: string, fromVersion?: number, limit?: number): Promise<LiveRoomEvent[]>;
   getAttendanceByRoomId(roomId: string): Promise<RoomAttendanceRecord[]>;

@@ -57,6 +57,7 @@ export class LiveRoomService {
       actorAccountId: user.accountId,
       actorRoles: user.roles,
       accessToken: user.accessToken,
+      requestId: user.requestId,
       correlationId: user.correlationId,
       roleOverride: dto.role,
       expectedVersion: dto.expectedVersion

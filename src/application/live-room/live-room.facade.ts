@@ -90,13 +90,20 @@ export class LiveRoomFacade {
       this.ensureExpectedVersion(snapshot.version, command.expectedVersion);
       const effectiveRole = command.roleOverride ?? command.actorRoles[0] ?? 'student';
       if (effectiveRole === 'student') {
-        await this.courseAccessChecker.ensureCanJoinCourse({
-          courseId: snapshot.courseId,
-          actorAccountId: command.actorAccountId,
-          actorRoles: command.actorRoles,
-          accessToken: command.accessToken,
-          correlationId: command.correlationId
-        });
+        try {
+          await this.courseAccessChecker.ensureCanJoinCourse({
+            courseId: snapshot.courseId,
+            actorAccountId: command.actorAccountId,
+            actorRoles: command.actorRoles,
+            accessToken: command.accessToken,
+            correlationId: command.correlationId
+          });
+        } catch (error) {
+          if (error instanceof ApplicationAccessDeniedError) {
+            await this.persistJoinDeniedEvent(snapshot, command, effectiveRole, error.message);
+          }
+          throw error;
+        }
       }
       const aggregate = LiveRoomAggregate.restore(snapshot);
 
@@ -353,6 +360,31 @@ export class LiveRoomFacade {
       eventId: randomUUID(),
       ...input
     };
+  }
+
+  private async persistJoinDeniedEvent(
+    snapshot: LiveRoomSnapshot,
+    command: JoinLiveRoomCommand,
+    effectiveRole: string,
+    reason: string
+  ): Promise<void> {
+    await this.repository.appendAuditEvents(snapshot.roomId, snapshot.version, [
+      this.newEvent({
+        roomId: snapshot.roomId,
+        roomVersion: snapshot.version,
+        eventType: 'participant_join_denied',
+        actorAccountId: command.actorAccountId,
+        occurredAt: new Date().toISOString(),
+        payload: {
+          role: effectiveRole,
+          courseId: snapshot.courseId,
+          reason,
+          reasonCode: 'course_access_denied',
+          requestId: command.requestId ?? null,
+          correlationId: command.correlationId ?? null
+        }
+      })
+    ]);
   }
 
   private calculateDurationSeconds(startedAtIso: string, endedAtIso: string): number {

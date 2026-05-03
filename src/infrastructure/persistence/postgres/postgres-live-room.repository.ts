@@ -137,6 +137,58 @@ export class PostgresLiveRoomRepository implements LiveRoomRepositoryPort, OnMod
     });
   }
 
+  async appendAuditEvents(
+    roomId: string,
+    expectedVersion: number,
+    events: LiveRoomEvent[]
+  ): Promise<boolean> {
+    if (events.length === 0) {
+      return true;
+    }
+
+    return this.db.transaction(async (tx) => {
+      const current = await tx
+        .select({ roomId: liveRoomsTable.roomId })
+        .from(liveRoomsTable)
+        .where(and(eq(liveRoomsTable.roomId, roomId), eq(liveRoomsTable.version, expectedVersion)))
+        .limit(1);
+
+      if (current.length === 0) {
+        return false;
+      }
+
+      await tx.insert(roomEventsTable).values(
+        events.map((event) => ({
+          eventId: event.eventId,
+          roomId: event.roomId,
+          roomVersion: event.roomVersion,
+          eventType: event.eventType,
+          actorAccountId: event.actorAccountId,
+          occurredAt: new Date(event.occurredAt),
+          payload: event.payload
+        }))
+      );
+
+      await tx.insert(outboxEventsTable).values(
+        events.map((event) => ({
+          eventId: event.eventId,
+          topic: 'live_room.events',
+          payload: {
+            eventId: event.eventId,
+            roomId: event.roomId,
+            roomVersion: event.roomVersion,
+            eventType: event.eventType,
+            actorAccountId: event.actorAccountId,
+            occurredAt: event.occurredAt,
+            payload: event.payload
+          }
+        }))
+      );
+
+      return true;
+    });
+  }
+
   async getById(roomId: string): Promise<LiveRoomSnapshot | null> {
     const rooms = await this.db
       .select()
