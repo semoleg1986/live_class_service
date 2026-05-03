@@ -35,8 +35,11 @@ export const liveRoomProviders: Provider[] = [
       inMemoryChecker: InMemoryCourseAccessChecker,
       httpChecker: HttpCourseAccessChecker
     ): CourseAccessCheckerPort => {
-      const useInMemory = configService.get<boolean>('liveClass.useInmemory', true);
-      return useInMemory ? inMemoryChecker : httpChecker;
+      const useInMemoryChecker = configService.get<boolean>(
+        'liveClass.useInmemoryCourseAccessChecker',
+        false
+      );
+      return useInMemoryChecker ? inMemoryChecker : httpChecker;
     }
   },
   RedisStreamOutboxRelayService,

@@ -10,7 +10,10 @@ import {
   ApplicationValidationError
 } from '../../../src/application/shared/errors';
 import { LiveClassMetricsService } from '../../../src/infrastructure/observability/live-class-metrics.service';
-import { LiveRoomSnapshot, RoomAttendanceRecord } from '../../../src/domain/live-room/live-room.types';
+import {
+  LiveRoomSnapshot,
+  RoomAttendanceRecord
+} from '../../../src/domain/live-room/live-room.types';
 
 const NOW = '2026-04-10T10:00:00.000Z';
 

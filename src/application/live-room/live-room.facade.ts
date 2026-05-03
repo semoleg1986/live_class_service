@@ -124,7 +124,11 @@ export class LiveRoomFacade {
           }
         })
       ]);
-      this.metricsService.markParticipantJoin({ role: effectiveRole, result: 'joined', snapshot: updated });
+      this.metricsService.markParticipantJoin({
+        role: effectiveRole,
+        result: 'joined',
+        snapshot: updated
+      });
       return updated;
     } catch (error) {
       if (error instanceof ApplicationAccessDeniedError) {
@@ -151,7 +155,11 @@ export class LiveRoomFacade {
       });
 
       if (!changed) {
-        this.metricsService.markParticipantLeave({ role: previousParticipant?.role ?? 'unknown', result: 'noop', snapshot });
+        this.metricsService.markParticipantLeave({
+          role: previousParticipant?.role ?? 'unknown',
+          result: 'noop',
+          snapshot
+        });
         return snapshot;
       }
 

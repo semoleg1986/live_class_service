@@ -2,6 +2,7 @@ export type LiveClassConfig = {
   httpPort: number;
   wsNamespace: string;
   useInmemory: boolean;
+  useInmemoryCourseAccessChecker: boolean;
   maxStudents: number;
   maxParticipants: number;
   authIssuer: string;
@@ -36,6 +37,10 @@ export default (): { liveClass: LiveClassConfig } => ({
     httpPort: parseIntOrDefault(process.env.LIVE_CLASS_HTTP_PORT, 8010),
     wsNamespace: process.env.LIVE_CLASS_WS_NAMESPACE ?? '/ws/live',
     useInmemory: parseBoolOrDefault(process.env.LIVE_CLASS_USE_INMEMORY, true),
+    useInmemoryCourseAccessChecker: parseBoolOrDefault(
+      process.env.LIVE_CLASS_USE_INMEMORY_COURSE_ACCESS_CHECKER,
+      false
+    ),
     maxStudents: parseIntOrDefault(process.env.LIVE_CLASS_MAX_STUDENTS, 10),
     maxParticipants: parseIntOrDefault(process.env.LIVE_CLASS_MAX_PARTICIPANTS, 11),
     authIssuer: process.env.LIVE_CLASS_AUTH_ISSUER ?? 'auth_service',

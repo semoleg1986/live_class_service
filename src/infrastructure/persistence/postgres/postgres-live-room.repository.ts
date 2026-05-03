@@ -243,7 +243,10 @@ export class PostgresLiveRoomRepository implements LiveRoomRepositoryPort, OnMod
           .select()
           .from(roomAttendanceTable)
           .where(
-            and(eq(roomAttendanceTable.roomId, roomId), eq(roomAttendanceTable.accountId, accountId))
+            and(
+              eq(roomAttendanceTable.roomId, roomId),
+              eq(roomAttendanceTable.accountId, accountId)
+            )
           )
           .limit(1);
 
@@ -279,7 +282,10 @@ export class PostgresLiveRoomRepository implements LiveRoomRepositoryPort, OnMod
             updatedAt: new Date(event.occurredAt)
           })
           .where(
-            and(eq(roomAttendanceTable.roomId, roomId), eq(roomAttendanceTable.accountId, accountId))
+            and(
+              eq(roomAttendanceTable.roomId, roomId),
+              eq(roomAttendanceTable.accountId, accountId)
+            )
           );
       }
 
@@ -297,7 +303,10 @@ export class PostgresLiveRoomRepository implements LiveRoomRepositoryPort, OnMod
           .select()
           .from(roomAttendanceTable)
           .where(
-            and(eq(roomAttendanceTable.roomId, roomId), eq(roomAttendanceTable.accountId, accountId))
+            and(
+              eq(roomAttendanceTable.roomId, roomId),
+              eq(roomAttendanceTable.accountId, accountId)
+            )
           )
           .limit(1);
 
@@ -322,7 +331,10 @@ export class PostgresLiveRoomRepository implements LiveRoomRepositoryPort, OnMod
             updatedAt: new Date(event.occurredAt)
           })
           .where(
-            and(eq(roomAttendanceTable.roomId, roomId), eq(roomAttendanceTable.accountId, accountId))
+            and(
+              eq(roomAttendanceTable.roomId, roomId),
+              eq(roomAttendanceTable.accountId, accountId)
+            )
           );
       }
     }

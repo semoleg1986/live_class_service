@@ -54,7 +54,11 @@ export class LiveClassMetricsService {
       this.setRoomSnapshot(input.snapshot);
     }
     if (input.durationSeconds !== undefined) {
-      this.increment('live_room_attendance_seconds_total', { role: input.role }, input.durationSeconds);
+      this.increment(
+        'live_room_attendance_seconds_total',
+        { role: input.role },
+        input.durationSeconds
+      );
     }
   }
 
@@ -72,7 +76,11 @@ export class LiveClassMetricsService {
       this.setRoomSnapshot(input.snapshot);
     }
     if (input.durationSeconds !== undefined) {
-      this.increment('live_room_attendance_seconds_total', { role: input.role }, input.durationSeconds);
+      this.increment(
+        'live_room_attendance_seconds_total',
+        { role: input.role },
+        input.durationSeconds
+      );
     }
   }
 
