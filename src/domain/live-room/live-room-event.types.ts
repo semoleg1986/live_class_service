@@ -3,6 +3,7 @@ export type LiveRoomEventType =
   | 'participant_joined'
   | 'participant_left'
   | 'participant_kicked'
+  | 'attendance_updated'
   | 'room_closed';
 
 export type LiveRoomEvent = {

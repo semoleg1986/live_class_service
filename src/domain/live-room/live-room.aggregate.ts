@@ -43,13 +43,13 @@ export class LiveRoomAggregate {
     });
   }
 
-  join(input: { accountId: string; role: string; nowIso: string }): void {
+  join(input: { accountId: string; role: string; nowIso: string }): boolean {
     if (this.state.status === 'closed') {
       throw new InvariantViolationError('Комната уже закрыта.');
     }
 
     if (this.state.participants.some((item) => item.accountId === input.accountId)) {
-      return;
+      return false;
     }
 
     if (this.state.participants.length >= this.state.participantsLimit) {
@@ -68,9 +68,10 @@ export class LiveRoomAggregate {
     }
 
     this.touch(input.nowIso);
+    return true;
   }
 
-  leave(input: { accountId: string; nowIso: string }): void {
+  leave(input: { accountId: string; nowIso: string }): boolean {
     if (this.state.status === 'closed') {
       throw new InvariantViolationError('Комната уже закрыта.');
     }
@@ -81,10 +82,11 @@ export class LiveRoomAggregate {
     );
 
     if (this.state.participants.length === initialLength) {
-      return;
+      return false;
     }
 
     this.touch(input.nowIso);
+    return true;
   }
 
   kick(input: {
@@ -92,7 +94,7 @@ export class LiveRoomAggregate {
     actorRoles: string[];
     participantAccountId: string;
     nowIso: string;
-  }): void {
+  }): boolean {
     LiveRoomPolicy.ensureCanManageParticipants(
       input.actorAccountId,
       input.actorRoles,
@@ -116,13 +118,14 @@ export class LiveRoomAggregate {
     );
 
     if (this.state.participants.length === initialLength) {
-      return;
+      return false;
     }
 
     this.touch(input.nowIso);
+    return true;
   }
 
-  close(input: { actorAccountId: string; actorRoles: string[]; nowIso: string }): void {
+  close(input: { actorAccountId: string; actorRoles: string[]; nowIso: string }): boolean {
     LiveRoomPolicy.ensureCanClose(
       input.actorAccountId,
       input.actorRoles,
@@ -130,12 +133,13 @@ export class LiveRoomAggregate {
     );
 
     if (this.state.status === 'closed') {
-      return;
+      return false;
     }
 
     this.state.status = 'closed';
     this.state.endedAt = input.nowIso;
     this.touch(input.nowIso);
+    return true;
   }
 
   toSnapshot(): LiveRoomSnapshot {

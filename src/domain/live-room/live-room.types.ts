@@ -6,6 +6,18 @@ export type RoomParticipant = {
   joinedAt: string;
 };
 
+export type RoomAttendanceRecord = {
+  accountId: string;
+  role: string;
+  firstJoinedAt: string;
+  lastJoinedAt: string;
+  lastLeftAt: string | null;
+  activeSessionStartedAt: string | null;
+  totalAttendanceSeconds: number;
+  sessionCount: number;
+  updatedAt: string;
+};
+
 export type LiveRoomSnapshot = {
   roomId: string;
   courseId: string;

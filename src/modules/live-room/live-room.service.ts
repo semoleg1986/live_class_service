@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { LiveRoomFacade } from '../../application/live-room/live-room.facade';
 import { LiveRoomEvent } from '../../domain/live-room/live-room-event.types';
-import { LiveRoomSnapshot } from '../../domain/live-room/live-room.types';
+import { LiveRoomSnapshot, RoomAttendanceRecord } from '../../domain/live-room/live-room.types';
 import { AuthUser } from '../auth/auth-user.interface';
 import { CloseRoomDto } from './dto/close-room.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
@@ -40,6 +40,14 @@ export class LiveRoomService {
       actorRoles: user.roles,
       fromVersion: query.fromVersion,
       limit: query.limit
+    });
+  }
+
+  async getRoomAttendance(roomId: string, user: AuthUser): Promise<RoomAttendanceRecord[]> {
+    return this.facade.getRoomAttendance({
+      roomId,
+      actorAccountId: user.accountId,
+      actorRoles: user.roles
     });
   }
 

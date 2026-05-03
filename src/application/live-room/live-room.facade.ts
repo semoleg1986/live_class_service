@@ -6,7 +6,7 @@ import { CourseAccessCheckerPort } from '../ports/course-access-checker.port';
 import { LiveRoomAggregate } from '../../domain/live-room/live-room.aggregate';
 import { LiveRoomEvent } from '../../domain/live-room/live-room-event.types';
 import { LiveRoomPolicy } from '../../domain/live-room/live-room.policy';
-import { LiveRoomSnapshot } from '../../domain/live-room/live-room.types';
+import { LiveRoomSnapshot, RoomAttendanceRecord } from '../../domain/live-room/live-room.types';
 import { InvariantViolationError, NotFoundError } from '../../domain/shared/errors';
 import { LiveRoomRepositoryPort } from '../ports/live-room-repository.port';
 import {
@@ -15,6 +15,7 @@ import {
   ApplicationNotFoundError,
   ApplicationValidationError
 } from '../shared/errors';
+import { LiveClassMetricsService } from '../../infrastructure/observability/live-class-metrics.service';
 import {
   CloseLiveRoomCommand,
   CreateLiveRoomCommand,
@@ -30,7 +31,8 @@ export class LiveRoomFacade {
     private readonly repository: LiveRoomRepositoryPort,
     @Inject('COURSE_ACCESS_CHECKER')
     private readonly courseAccessChecker: CourseAccessCheckerPort,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly metricsService: LiveClassMetricsService
   ) {}
 
   async createRoom(command: CreateLiveRoomCommand): Promise<LiveRoomSnapshot> {
@@ -63,6 +65,7 @@ export class LiveRoomFacade {
           }
         })
       ]);
+      this.metricsService.markRoomCreated(snapshot);
       return snapshot;
     } catch (error) {
       this.mapDomainError(error);
@@ -96,11 +99,17 @@ export class LiveRoomFacade {
       }
       const aggregate = LiveRoomAggregate.restore(snapshot);
 
-      aggregate.join({
+      const nowIso = new Date().toISOString();
+      const changed = aggregate.join({
         accountId: command.actorAccountId,
         role: effectiveRole,
-        nowIso: new Date().toISOString()
+        nowIso
       });
+
+      if (!changed) {
+        this.metricsService.markParticipantJoin({ role: effectiveRole, result: 'noop', snapshot });
+        return snapshot;
+      }
 
       const updated = aggregate.toSnapshot();
       await this.saveOrThrowConflict(updated, snapshot.version, [
@@ -115,8 +124,13 @@ export class LiveRoomFacade {
           }
         })
       ]);
+      this.metricsService.markParticipantJoin({ role: effectiveRole, result: 'joined', snapshot: updated });
       return updated;
     } catch (error) {
+      if (error instanceof ApplicationAccessDeniedError) {
+        const effectiveRole = command.roleOverride ?? command.actorRoles[0] ?? 'student';
+        this.metricsService.markParticipantJoin({ role: effectiveRole, result: 'denied' });
+      }
       this.mapDomainError(error);
     }
   }
@@ -126,11 +140,20 @@ export class LiveRoomFacade {
       const snapshot = await this.getRoom(command.roomId);
       this.ensureExpectedVersion(snapshot.version, command.expectedVersion);
       const aggregate = LiveRoomAggregate.restore(snapshot);
+      const previousParticipant = snapshot.participants.find(
+        (item) => item.accountId === command.actorAccountId
+      );
+      const nowIso = new Date().toISOString();
 
-      aggregate.leave({
+      const changed = aggregate.leave({
         accountId: command.actorAccountId,
-        nowIso: new Date().toISOString()
+        nowIso
       });
+
+      if (!changed) {
+        this.metricsService.markParticipantLeave({ role: previousParticipant?.role ?? 'unknown', result: 'noop', snapshot });
+        return snapshot;
+      }
 
       const updated = aggregate.toSnapshot();
       await this.saveOrThrowConflict(updated, snapshot.version, [
@@ -143,6 +166,14 @@ export class LiveRoomFacade {
           payload: {}
         })
       ]);
+      this.metricsService.markParticipantLeave({
+        role: previousParticipant?.role ?? 'unknown',
+        result: 'left',
+        durationSeconds: previousParticipant
+          ? this.calculateDurationSeconds(previousParticipant.joinedAt, nowIso)
+          : undefined,
+        snapshot: updated
+      });
       return updated;
     } catch (error) {
       this.mapDomainError(error);
@@ -154,13 +185,26 @@ export class LiveRoomFacade {
       const snapshot = await this.getRoom(command.roomId);
       this.ensureExpectedVersion(snapshot.version, command.expectedVersion);
       const aggregate = LiveRoomAggregate.restore(snapshot);
+      const previousParticipant = snapshot.participants.find(
+        (item) => item.accountId === command.participantAccountId
+      );
+      const nowIso = new Date().toISOString();
 
-      aggregate.kick({
+      const changed = aggregate.kick({
         actorAccountId: command.actorAccountId,
         actorRoles: command.actorRoles,
         participantAccountId: command.participantAccountId,
-        nowIso: new Date().toISOString()
+        nowIso
       });
+
+      if (!changed) {
+        this.metricsService.markParticipantKick({
+          role: previousParticipant?.role ?? 'unknown',
+          result: 'noop',
+          snapshot
+        });
+        return snapshot;
+      }
 
       const updated = aggregate.toSnapshot();
       await this.saveOrThrowConflict(updated, snapshot.version, [
@@ -175,6 +219,14 @@ export class LiveRoomFacade {
           }
         })
       ]);
+      this.metricsService.markParticipantKick({
+        role: previousParticipant?.role ?? 'unknown',
+        result: 'kicked',
+        durationSeconds: previousParticipant
+          ? this.calculateDurationSeconds(previousParticipant.joinedAt, nowIso)
+          : undefined,
+        snapshot: updated
+      });
       return updated;
     } catch (error) {
       this.mapDomainError(error);
@@ -187,11 +239,15 @@ export class LiveRoomFacade {
       this.ensureExpectedVersion(snapshot.version, command.expectedVersion);
       const aggregate = LiveRoomAggregate.restore(snapshot);
 
-      aggregate.close({
+      const changed = aggregate.close({
         actorAccountId: command.actorAccountId,
         actorRoles: command.actorRoles,
         nowIso: new Date().toISOString()
       });
+
+      if (!changed) {
+        return snapshot;
+      }
 
       const updated = aggregate.toSnapshot();
       await this.saveOrThrowConflict(updated, snapshot.version, [
@@ -204,6 +260,7 @@ export class LiveRoomFacade {
           payload: {}
         })
       ]);
+      this.metricsService.markRoomClosed(updated);
       return updated;
     } catch (error) {
       this.mapDomainError(error);
@@ -225,6 +282,24 @@ export class LiveRoomFacade {
         room.teacherAccountId
       );
       return this.repository.getEventsByRoomId(input.roomId, input.fromVersion, input.limit);
+    } catch (error) {
+      this.mapDomainError(error);
+    }
+  }
+
+  async getRoomAttendance(input: {
+    roomId: string;
+    actorAccountId: string;
+    actorRoles: string[];
+  }): Promise<RoomAttendanceRecord[]> {
+    try {
+      const room = await this.getRoom(input.roomId);
+      LiveRoomPolicy.ensureCanViewEvents(
+        input.actorAccountId,
+        input.actorRoles,
+        room.teacherAccountId
+      );
+      return this.repository.getAttendanceByRoomId(input.roomId);
     } catch (error) {
       this.mapDomainError(error);
     }
@@ -269,5 +344,11 @@ export class LiveRoomFacade {
       eventId: randomUUID(),
       ...input
     };
+  }
+
+  private calculateDurationSeconds(startedAtIso: string, endedAtIso: string): number {
+    const startedAt = new Date(startedAtIso).getTime();
+    const endedAt = new Date(endedAtIso).getTime();
+    return Math.max(0, Math.floor((endedAt - startedAt) / 1000));
   }
 }

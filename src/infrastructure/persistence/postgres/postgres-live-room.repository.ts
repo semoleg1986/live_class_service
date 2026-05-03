@@ -5,11 +5,12 @@ import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
 import { LiveRoomEvent } from '../../../domain/live-room/live-room-event.types';
-import { LiveRoomSnapshot } from '../../../domain/live-room/live-room.types';
+import { LiveRoomSnapshot, RoomAttendanceRecord } from '../../../domain/live-room/live-room.types';
 import { LiveRoomRepositoryPort } from '../../../application/ports/live-room-repository.port';
 import {
   liveRoomsTable,
   outboxEventsTable,
+  roomAttendanceTable,
   roomEventsTable,
   roomParticipantsTable
 } from './schema';
@@ -99,6 +100,8 @@ export class PostgresLiveRoomRepository implements LiveRoomRepositoryPort, OnMod
           }))
         );
       }
+
+      await this.applyAttendance(tx, room.roomId, events);
 
       if (events.length > 0) {
         await tx.insert(roomEventsTable).values(
@@ -198,5 +201,130 @@ export class PostgresLiveRoomRepository implements LiveRoomRepositoryPort, OnMod
       occurredAt: item.occurredAt.toISOString(),
       payload: item.payload
     }));
+  }
+
+  async getAttendanceByRoomId(roomId: string): Promise<RoomAttendanceRecord[]> {
+    const rows = await this.db
+      .select()
+      .from(roomAttendanceTable)
+      .where(eq(roomAttendanceTable.roomId, roomId))
+      .orderBy(asc(roomAttendanceTable.firstJoinedAt), asc(roomAttendanceTable.accountId));
+
+    return rows.map((item) => ({
+      accountId: item.accountId,
+      role: item.role,
+      firstJoinedAt: item.firstJoinedAt.toISOString(),
+      lastJoinedAt: item.lastJoinedAt.toISOString(),
+      lastLeftAt: item.lastLeftAt ? item.lastLeftAt.toISOString() : null,
+      activeSessionStartedAt: item.activeSessionStartedAt
+        ? item.activeSessionStartedAt.toISOString()
+        : null,
+      totalAttendanceSeconds: item.totalAttendanceSeconds,
+      sessionCount: item.sessionCount,
+      updatedAt: item.updatedAt.toISOString()
+    }));
+  }
+
+  private async applyAttendance(
+    tx: Parameters<NodePgDatabase['transaction']>[0] extends (arg: infer T) => any ? T : never,
+    roomId: string,
+    events: LiveRoomEvent[]
+  ): Promise<void> {
+    for (const event of events) {
+      if (event.eventType === 'participant_joined') {
+        const accountId = event.actorAccountId;
+        const role = String(event.payload.role ?? 'student');
+
+        if (!accountId) {
+          continue;
+        }
+
+        const current = await tx
+          .select()
+          .from(roomAttendanceTable)
+          .where(
+            and(eq(roomAttendanceTable.roomId, roomId), eq(roomAttendanceTable.accountId, accountId))
+          )
+          .limit(1);
+
+        const row = current[0];
+
+        if (!row) {
+          await tx.insert(roomAttendanceTable).values({
+            roomId,
+            accountId,
+            role,
+            firstJoinedAt: new Date(event.occurredAt),
+            lastJoinedAt: new Date(event.occurredAt),
+            lastLeftAt: null,
+            activeSessionStartedAt: new Date(event.occurredAt),
+            totalAttendanceSeconds: 0,
+            sessionCount: 1,
+            updatedAt: new Date(event.occurredAt)
+          });
+          continue;
+        }
+
+        if (row.activeSessionStartedAt) {
+          continue;
+        }
+
+        await tx
+          .update(roomAttendanceTable)
+          .set({
+            role,
+            lastJoinedAt: new Date(event.occurredAt),
+            activeSessionStartedAt: new Date(event.occurredAt),
+            sessionCount: row.sessionCount + 1,
+            updatedAt: new Date(event.occurredAt)
+          })
+          .where(
+            and(eq(roomAttendanceTable.roomId, roomId), eq(roomAttendanceTable.accountId, accountId))
+          );
+      }
+
+      if (event.eventType === 'participant_left' || event.eventType === 'participant_kicked') {
+        const accountId =
+          event.eventType === 'participant_left'
+            ? event.actorAccountId
+            : String(event.payload.participantAccountId ?? '');
+
+        if (!accountId) {
+          continue;
+        }
+
+        const current = await tx
+          .select()
+          .from(roomAttendanceTable)
+          .where(
+            and(eq(roomAttendanceTable.roomId, roomId), eq(roomAttendanceTable.accountId, accountId))
+          )
+          .limit(1);
+
+        const row = current[0];
+        if (!row || !row.activeSessionStartedAt) {
+          continue;
+        }
+
+        const durationSeconds = Math.max(
+          0,
+          Math.floor(
+            (new Date(event.occurredAt).getTime() - row.activeSessionStartedAt.getTime()) / 1000
+          )
+        );
+
+        await tx
+          .update(roomAttendanceTable)
+          .set({
+            totalAttendanceSeconds: row.totalAttendanceSeconds + durationSeconds,
+            lastLeftAt: new Date(event.occurredAt),
+            activeSessionStartedAt: null,
+            updatedAt: new Date(event.occurredAt)
+          })
+          .where(
+            and(eq(roomAttendanceTable.roomId, roomId), eq(roomAttendanceTable.accountId, accountId))
+          );
+      }
+    }
   }
 }

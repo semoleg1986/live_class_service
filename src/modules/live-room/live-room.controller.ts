@@ -11,7 +11,7 @@ import { JoinRoomDto } from './dto/join-room.dto';
 import { KickFromRoomDto } from './dto/kick-from-room.dto';
 import { LeaveRoomDto } from './dto/leave-room.dto';
 import { LiveRoomService } from './live-room.service';
-import { LiveRoomSnapshot } from '../../domain/live-room/live-room.types';
+import { LiveRoomSnapshot, RoomAttendanceRecord } from '../../domain/live-room/live-room.types';
 
 @Controller('/v1/live/rooms')
 @UseGuards(BearerAuthGuard)
@@ -38,6 +38,14 @@ export class LiveRoomController {
     @CurrentUser() user: AuthUser
   ): Promise<LiveRoomEvent[]> {
     return this.liveRoomService.getRoomEvents(roomId, user, query);
+  }
+
+  @Get(':roomId/attendance')
+  async getRoomAttendance(
+    @Param('roomId') roomId: string,
+    @CurrentUser() user: AuthUser
+  ): Promise<RoomAttendanceRecord[]> {
+    return this.liveRoomService.getRoomAttendance(roomId, user);
   }
 
   @Post(':roomId/join')

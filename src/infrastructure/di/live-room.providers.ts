@@ -6,6 +6,7 @@ import { LiveRoomFacade } from '../../application/live-room/live-room.facade';
 import { HttpCourseAccessChecker } from '../access/http-course-access-checker';
 import { InMemoryCourseAccessChecker } from '../access/inmemory-course-access-checker';
 import { RedisStreamOutboxRelayService } from '../messaging/redis-stream-outbox-relay.service';
+import { LiveClassMetricsService } from '../observability/live-class-metrics.service';
 import { InMemoryLiveRoomRepository } from '../persistence/inmemory/inmemory-live-room.repository';
 import { PostgresLiveRoomRepository } from '../persistence/postgres/postgres-live-room.repository';
 
@@ -39,5 +40,6 @@ export const liveRoomProviders: Provider[] = [
     }
   },
   RedisStreamOutboxRelayService,
+  LiveClassMetricsService,
   LiveRoomFacade
 ];

@@ -9,7 +9,8 @@ import {
   ApplicationNotFoundError,
   ApplicationValidationError
 } from '../../../src/application/shared/errors';
-import { LiveRoomSnapshot } from '../../../src/domain/live-room/live-room.types';
+import { LiveClassMetricsService } from '../../../src/infrastructure/observability/live-class-metrics.service';
+import { LiveRoomSnapshot, RoomAttendanceRecord } from '../../../src/domain/live-room/live-room.types';
 
 const NOW = '2026-04-10T10:00:00.000Z';
 
@@ -40,20 +41,26 @@ describe('LiveRoomFacade (unit)', () => {
       getById: jest.fn(async (_roomId) => null) as LiveRoomRepositoryPort['getById'],
       getEventsByRoomId: jest.fn(
         async (_roomId, _fromVersion, _limit) => []
-      ) as LiveRoomRepositoryPort['getEventsByRoomId']
+      ) as LiveRoomRepositoryPort['getEventsByRoomId'],
+      getAttendanceByRoomId: jest.fn(
+        async (_roomId) => []
+      ) as LiveRoomRepositoryPort['getAttendanceByRoomId']
     };
     const checker: CourseAccessCheckerPort = {
       ensureCanJoinCourse: jest.fn(async () => undefined)
     };
     const config = { get: jest.fn((_k: string, d: number) => d) } as unknown as ConfigService;
+    const metrics = new LiveClassMetricsService();
     return {
       repo,
       checker,
+      metrics,
       saveMock: repo.save as unknown as jest.Mock,
       getByIdMock: repo.getById as unknown as jest.Mock,
       getEventsByRoomIdMock: repo.getEventsByRoomId as unknown as jest.Mock,
+      getAttendanceByRoomIdMock: repo.getAttendanceByRoomId as unknown as jest.Mock,
       ensureCanJoinCourseMock: checker.ensureCanJoinCourse as unknown as jest.Mock,
-      facade: new LiveRoomFacade(repo, checker, config)
+      facade: new LiveRoomFacade(repo, checker, config, metrics)
     };
   }
 
@@ -116,7 +123,13 @@ describe('LiveRoomFacade (unit)', () => {
       })
     ).rejects.toBeInstanceOf(ApplicationAccessDeniedError);
 
-    getByIdMock.mockResolvedValue(snapshot());
+    getByIdMock.mockResolvedValue(
+      snapshot({
+        status: 'active',
+        version: 2,
+        participants: [{ accountId: 'student-1', role: 'student', joinedAt: NOW }]
+      })
+    );
     saveMock.mockResolvedValue(false);
     await expect(
       facade.leaveRoom({
@@ -127,7 +140,7 @@ describe('LiveRoomFacade (unit)', () => {
   });
 
   it('returns events and validates visibility policy', async () => {
-    const { facade, getByIdMock, getEventsByRoomIdMock } = build();
+    const { facade, getByIdMock, getEventsByRoomIdMock, getAttendanceByRoomIdMock } = build();
     getByIdMock.mockResolvedValue(snapshot());
     getEventsByRoomIdMock.mockResolvedValue([
       {
@@ -155,6 +168,27 @@ describe('LiveRoomFacade (unit)', () => {
         actorRoles: ['student']
       })
     ).rejects.toBeInstanceOf(ApplicationValidationError);
+
+    const attendance: RoomAttendanceRecord[] = [
+      {
+        accountId: 'student-1',
+        role: 'student',
+        firstJoinedAt: NOW,
+        lastJoinedAt: NOW,
+        lastLeftAt: null,
+        activeSessionStartedAt: NOW,
+        totalAttendanceSeconds: 0,
+        sessionCount: 1,
+        updatedAt: NOW
+      }
+    ];
+    getAttendanceByRoomIdMock.mockResolvedValue(attendance);
+    const records = await facade.getRoomAttendance({
+      roomId: 'room-1',
+      actorAccountId: 'teacher-1',
+      actorRoles: ['teacher']
+    });
+    expect(records).toHaveLength(1);
   });
 
   it('executes join/leave/kick/close success flows and emits proper events', async () => {
@@ -250,5 +284,33 @@ describe('LiveRoomFacade (unit)', () => {
       limit: 5
     });
     expect(getEventsByRoomIdMock).toHaveBeenCalledWith('room-1', 2, 5);
+  });
+
+  it('returns unchanged snapshot and does not persist duplicate or noop attendance transitions', async () => {
+    const { facade, getByIdMock, saveMock } = build();
+
+    getByIdMock.mockResolvedValue(
+      snapshot({
+        status: 'active',
+        version: 2,
+        participants: [{ accountId: 'student-1', role: 'student', joinedAt: NOW }]
+      })
+    );
+
+    const duplicateJoin = await facade.joinRoom({
+      roomId: 'room-1',
+      actorAccountId: 'student-1',
+      actorRoles: ['student'],
+      accessToken: 'token-student-1'
+    });
+    expect(duplicateJoin.version).toBe(2);
+    expect(saveMock).not.toHaveBeenCalled();
+
+    const noopLeave = await facade.leaveRoom({
+      roomId: 'room-1',
+      actorAccountId: 'missing-student'
+    });
+    expect(noopLeave.version).toBe(2);
+    expect(saveMock).not.toHaveBeenCalled();
   });
 });

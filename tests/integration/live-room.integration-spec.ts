@@ -174,6 +174,20 @@ describeIntegration('LiveRoomController (e2e)', () => {
     expect(paged.body).toHaveLength(2);
     expect(paged.body[0].roomVersion).toBe(3);
     expect(paged.body[1].roomVersion).toBe(4);
+
+    const attendance = await asUser(app, 'teacher-1', ['teacher'])
+      .get(`/v1/live/rooms/${roomId}/attendance`)
+      .expect(200);
+
+    expect(attendance.body).toHaveLength(2);
+    expect(attendance.body[0].accountId).toBe('student-1');
+    expect(attendance.body[0].sessionCount).toBe(1);
+    expect(attendance.body[0].lastLeftAt).toBeTruthy();
+    expect(attendance.body[0].activeSessionStartedAt).toBeNull();
+    expect(attendance.body[1].accountId).toBe('student-2');
+    expect(attendance.body[1].sessionCount).toBe(1);
+    expect(attendance.body[1].lastLeftAt).toBeTruthy();
+    expect(attendance.body[1].activeSessionStartedAt).toBeNull();
   });
 
   it('возвращает 409 при optimistic locking конфликте', async () => {
@@ -235,5 +249,15 @@ describeIntegration('LiveRoomController (e2e)', () => {
       .expect(403);
 
     expect(denied.body.message).toContain('Нет активного доступа к курсу');
+  });
+
+  it('публикует live metrics endpoint', async () => {
+    const response = await request(app.getHttpServer()).get('/metrics').expect(200);
+
+    expect(response.text).toContain('live_room_rooms_created_total');
+    expect(response.text).toContain('live_room_participant_joins_total');
+    expect(response.text).toContain('live_room_attendance_seconds_total');
+    expect(response.text).toContain('live_room_open_rooms');
+    expect(response.text).toContain('live_room_active_participants');
   });
 });

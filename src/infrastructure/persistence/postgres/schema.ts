@@ -37,6 +37,28 @@ export const roomParticipantsTable = pgTable(
   })
 );
 
+export const roomAttendanceTable = pgTable(
+  'room_attendance',
+  {
+    roomId: text('room_id')
+      .notNull()
+      .references(() => liveRoomsTable.roomId, { onDelete: 'cascade' }),
+    accountId: text('account_id').notNull(),
+    role: text('role').notNull(),
+    firstJoinedAt: timestamp('first_joined_at', { withTimezone: true }).notNull(),
+    lastJoinedAt: timestamp('last_joined_at', { withTimezone: true }).notNull(),
+    lastLeftAt: timestamp('last_left_at', { withTimezone: true }),
+    activeSessionStartedAt: timestamp('active_session_started_at', { withTimezone: true }),
+    totalAttendanceSeconds: integer('total_attendance_seconds').notNull().default(0),
+    sessionCount: integer('session_count').notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.roomId, table.accountId] }),
+    roomIdIdx: index('ix_room_attendance_room_id').on(table.roomId)
+  })
+);
+
 export const roomEventsTable = pgTable(
   'room_events',
   {
