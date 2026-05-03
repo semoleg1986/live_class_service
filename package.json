@@ -10,9 +10,14 @@
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "migrate:up": "npm run db:migrate",
-    "lint": "eslint \"src/**/*.ts\"",
-    "test": "jest",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" --fix",
+    "format": "prettier \"src/**/*.ts\" \"tests/**/*.ts\" \"*.json\" \"*.md\" --write",
+    "format:check": "prettier \"src/**/*.ts\" \"tests/**/*.ts\" \"*.json\" \"*.md\" --check",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "jest --config ./tests/unit/jest-unit.json",
+    "test:integration": "jest --config ./tests/integration/jest-integration.json",
+    "test:e2e": "npm run test:integration"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
@@ -32,6 +37,7 @@
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.1.18",
@@ -40,9 +46,13 @@
     "@types/node": "^22.10.2",
     "@types/pg": "^8.20.0",
     "@types/supertest": "^7.2.0",
+    "@typescript-eslint/eslint-plugin": "^8.11.0",
+    "@typescript-eslint/parser": "^8.11.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
     "jest": "^30.3.0",
+    "prettier": "^3.3.3",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.9",
     "typescript": "^5.7.2"

@@ -9,10 +9,10 @@ import { BearerAuthGuard } from './bearer-auth.guard';
     JwksAccessTokenVerifier,
     {
       provide: 'ACCESS_TOKEN_VERIFIER',
-      useExisting: JwksAccessTokenVerifier,
+      useExisting: JwksAccessTokenVerifier
     },
-    BearerAuthGuard,
+    BearerAuthGuard
   ],
-  exports: [BearerAuthGuard, 'ACCESS_TOKEN_VERIFIER'],
+  exports: [BearerAuthGuard, 'ACCESS_TOKEN_VERIFIER']
 })
 export class AuthModule {}

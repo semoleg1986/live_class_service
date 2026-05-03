@@ -11,13 +11,13 @@ export function createRemoteJWKSet(_url: URL): () => Promise<null> {
 export async function jwtVerify(
   _token: string,
   _keyResolver: unknown,
-  _options?: unknown,
+  _options?: unknown
 ): Promise<{ payload: JWTPayload }> {
   return {
     payload: {
       sub: 'test-account',
       roles: ['teacher'],
-      jti: 'test-jti',
-    },
+      jti: 'test-jti'
+    }
   };
 }

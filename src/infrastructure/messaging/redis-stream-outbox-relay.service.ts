@@ -12,9 +12,7 @@ type OutboxRow = {
 };
 
 @Injectable()
-export class RedisStreamOutboxRelayService
-  implements OnModuleInit, OnModuleDestroy
-{
+export class RedisStreamOutboxRelayService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RedisStreamOutboxRelayService.name);
   private readonly pool: Pool;
   private redisClient: RedisClientType | null = null;
@@ -25,33 +23,27 @@ export class RedisStreamOutboxRelayService
   constructor(private readonly configService: ConfigService) {
     const connectionString = this.configService.get<string>(
       'liveClass.databaseUrl',
-      'postgresql://postgres:postgres@localhost:5432/live_class_service',
+      'postgresql://postgres:postgres@localhost:5432/live_class_service'
     );
     this.pool = new Pool({ connectionString });
   }
 
   async onModuleInit(): Promise<void> {
-    const useInMemory = this.configService.get<boolean>(
-      'liveClass.useInmemory',
-      true,
-    );
+    const useInMemory = this.configService.get<boolean>('liveClass.useInmemory', true);
     if (useInMemory) {
       return;
     }
 
     const redisUrl = this.configService.get<string>(
       'liveClass.redisUrl',
-      'redis://localhost:6379/0',
+      'redis://localhost:6379/0'
     );
     this.redisClient = createClient({ url: redisUrl });
     this.redisClient.on('error', (error) => {
       this.logger.error(`Ошибка Redis relay: ${String(error)}`);
     });
 
-    const pollIntervalMs = this.configService.get<number>(
-      'liveClass.outboxPollIntervalMs',
-      1000,
-    );
+    const pollIntervalMs = this.configService.get<number>('liveClass.outboxPollIntervalMs', 1000);
     this.timer = setInterval(() => {
       void this.relayPendingBatch();
     }, pollIntervalMs);
@@ -86,14 +78,8 @@ export class RedisStreamOutboxRelayService
         return;
       }
 
-      const batchSize = this.configService.get<number>(
-        'liveClass.outboxBatchSize',
-        100,
-      );
-      const stream = this.configService.get<string>(
-        'liveClass.outboxStream',
-        'live_room.events',
-      );
+      const batchSize = this.configService.get<number>('liveClass.outboxBatchSize', 100);
+      const stream = this.configService.get<string>('liveClass.outboxStream', 'live_room.events');
 
       const rows = await this.fetchPending(batchSize);
       for (const row of rows) {
@@ -139,7 +125,7 @@ export class RedisStreamOutboxRelayService
       ORDER BY created_at ASC
       LIMIT $1
       `,
-      [limit],
+      [limit]
     );
     return result.rows;
   }
@@ -154,7 +140,7 @@ export class RedisStreamOutboxRelayService
         event_id: row.event_id,
         topic: row.topic,
         payload: JSON.stringify(row.payload),
-        created_at: row.created_at.toISOString(),
+        created_at: row.created_at.toISOString()
       });
 
       await this.pool.query(
@@ -165,7 +151,7 @@ export class RedisStreamOutboxRelayService
             last_error = NULL
         WHERE event_id = $1
         `,
-        [row.event_id],
+        [row.event_id]
       );
     } catch (error) {
       const nextAttempts = row.attempts + 1;
@@ -180,7 +166,7 @@ export class RedisStreamOutboxRelayService
             last_error = $4
         WHERE event_id = $1
         `,
-        [row.event_id, nextAttempts, delaySeconds, message],
+        [row.event_id, nextAttempts, delaySeconds, message]
       );
     }
   }

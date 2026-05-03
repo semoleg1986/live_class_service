@@ -12,7 +12,7 @@ export class InMemoryLiveRoomRepository implements LiveRoomRepositoryPort {
   async save(
     room: LiveRoomSnapshot,
     expectedVersion: number | null,
-    events: LiveRoomEvent[],
+    events: LiveRoomEvent[]
   ): Promise<boolean> {
     const current = this.rooms.get(room.roomId);
 
@@ -41,14 +41,14 @@ export class InMemoryLiveRoomRepository implements LiveRoomRepositoryPort {
     }
     return {
       ...room,
-      participants: room.participants.map((item) => ({ ...item })),
+      participants: room.participants.map((item) => ({ ...item }))
     };
   }
 
   async getEventsByRoomId(
     roomId: string,
     fromVersion?: number,
-    limit = 100,
+    limit = 100
   ): Promise<LiveRoomEvent[]> {
     const events = this.events.get(roomId) ?? [];
     const sliced = events
@@ -69,7 +69,7 @@ export class InMemoryLiveRoomRepository implements LiveRoomRepositoryPort {
   private cloneRoom(room: LiveRoomSnapshot): LiveRoomSnapshot {
     return {
       ...room,
-      participants: room.participants.map((item) => ({ ...item })),
+      participants: room.participants.map((item) => ({ ...item }))
     };
   }
 }

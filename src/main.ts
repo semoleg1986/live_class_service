@@ -13,8 +13,8 @@ async function bootstrap(): Promise<void> {
     new ValidationPipe({
       transform: true,
       whitelist: true,
-      forbidNonWhitelisted: true,
-    }),
+      forbidNonWhitelisted: true
+    })
   );
   app.useGlobalFilters(new ApplicationErrorFilter());
 

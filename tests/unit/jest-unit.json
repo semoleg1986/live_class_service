@@ -1,0 +1,18 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "../..",
+  "testEnvironment": "node",
+  "testRegex": "tests/unit/.*\\.unit-spec\\.ts$",
+  "collectCoverageFrom": [
+    "src/app.controller.ts",
+    "src/config/configuration.ts",
+    "src/domain/live-room/**/*.ts",
+    "src/domain/shared/errors.ts",
+    "src/application/live-room/**/*.ts",
+    "src/application/shared/errors.ts",
+    "src/modules/live-room/live-room.service.ts"
+  ],
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  }
+}

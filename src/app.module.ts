@@ -10,11 +10,11 @@ import { AppController } from './app.controller';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [configuration],
+      load: [configuration]
     }),
     AuthModule,
-    LiveRoomModule,
+    LiveRoomModule
   ],
-  controllers: [AppController],
+  controllers: [AppController]
 })
 export class AppModule {}

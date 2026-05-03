@@ -4,7 +4,7 @@ import { createRemoteJWKSet, jwtVerify, JWTPayload } from 'jose';
 
 import {
   AccessTokenClaims,
-  AccessTokenVerifierPort,
+  AccessTokenVerifierPort
 } from '../../application/ports/access-token-verifier.port';
 
 @Injectable()
@@ -15,17 +15,11 @@ export class JwksAccessTokenVerifier implements AccessTokenVerifierPort {
   private readonly jwksResolver: ReturnType<typeof createRemoteJWKSet>;
 
   constructor(private readonly configService: ConfigService) {
-    this.issuer = this.configService.get<string>(
-      'liveClass.authIssuer',
-      'auth_service',
-    );
-    this.audience = this.configService.get<string>(
-      'liveClass.authAudience',
-      'platform_clients',
-    );
+    this.issuer = this.configService.get<string>('liveClass.authIssuer', 'auth_service');
+    this.audience = this.configService.get<string>('liveClass.authAudience', 'platform_clients');
     this.jwksUrl = this.configService.get<string>(
       'liveClass.authJwksUrl',
-      'http://localhost:8000/.well-known/jwks.json',
+      'http://localhost:8000/.well-known/jwks.json'
     );
     this.jwksResolver = createRemoteJWKSet(new URL(this.jwksUrl));
   }
@@ -36,16 +30,7 @@ export class JwksAccessTokenVerifier implements AccessTokenVerifierPort {
         issuer: this.issuer,
         audience: this.audience,
         algorithms: ['EdDSA'],
-        requiredClaims: [
-          'iss',
-          'aud',
-          'sub',
-          'jti',
-          'roles',
-          'iat',
-          'exp',
-          'typ',
-        ],
+        requiredClaims: ['iss', 'aud', 'sub', 'jti', 'roles', 'iat', 'exp', 'typ']
       });
       return this.mapClaims(verified.payload);
     } catch {
@@ -66,15 +51,13 @@ export class JwksAccessTokenVerifier implements AccessTokenVerifierPort {
     }
 
     if (!accountId || roles.length === 0) {
-      throw new UnauthorizedException(
-        'JWT должен содержать sub и непустой массив roles.',
-      );
+      throw new UnauthorizedException('JWT должен содержать sub и непустой массив roles.');
     }
 
     return {
       accountId,
       roles,
-      tokenId: payload.jti ? String(payload.jti) : null,
+      tokenId: payload.jti ? String(payload.jti) : null
     };
   }
 }

@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 
 import { BearerAuthGuard } from '../auth/bearer-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -29,7 +21,7 @@ export class LiveRoomController {
   @Post()
   async createRoom(
     @Body() dto: CreateRoomDto,
-    @CurrentUser() user: AuthUser,
+    @CurrentUser() user: AuthUser
   ): Promise<LiveRoomSnapshot> {
     return this.liveRoomService.createRoom(dto, user);
   }
@@ -43,7 +35,7 @@ export class LiveRoomController {
   async getRoomEvents(
     @Param('roomId') roomId: string,
     @Query() query: GetRoomEventsQueryDto,
-    @CurrentUser() user: AuthUser,
+    @CurrentUser() user: AuthUser
   ): Promise<LiveRoomEvent[]> {
     return this.liveRoomService.getRoomEvents(roomId, user, query);
   }
@@ -52,7 +44,7 @@ export class LiveRoomController {
   async joinRoom(
     @Param('roomId') roomId: string,
     @Body() dto: JoinRoomDto,
-    @CurrentUser() user: AuthUser,
+    @CurrentUser() user: AuthUser
   ): Promise<LiveRoomSnapshot> {
     return this.liveRoomService.joinRoom(roomId, user, dto);
   }
@@ -61,7 +53,7 @@ export class LiveRoomController {
   async leaveRoom(
     @Param('roomId') roomId: string,
     @Body() dto: LeaveRoomDto,
-    @CurrentUser() user: AuthUser,
+    @CurrentUser() user: AuthUser
   ): Promise<LiveRoomSnapshot> {
     return this.liveRoomService.leaveRoom(roomId, user, dto);
   }
@@ -70,7 +62,7 @@ export class LiveRoomController {
   async kickFromRoom(
     @Param('roomId') roomId: string,
     @Body() dto: KickFromRoomDto,
-    @CurrentUser() user: AuthUser,
+    @CurrentUser() user: AuthUser
   ): Promise<LiveRoomSnapshot> {
     return this.liveRoomService.kickFromRoom(roomId, user, dto);
   }
@@ -79,7 +71,7 @@ export class LiveRoomController {
   async closeRoom(
     @Param('roomId') roomId: string,
     @Body() dto: CloseRoomDto,
-    @CurrentUser() user: AuthUser,
+    @CurrentUser() user: AuthUser
   ): Promise<LiveRoomSnapshot> {
     return this.liveRoomService.closeRoom(roomId, user, dto);
   }

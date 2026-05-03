@@ -31,6 +31,20 @@ curl http://localhost:8010/healthz
 
 Контракт live API и signaling: `docs/00-live-contract.md`.
 
+## Lint и Format
+
+```bash
+npm run lint
+npm run format:check
+```
+
+Автоисправление:
+
+```bash
+npm run lint:fix
+npm run format
+```
+
 ## Структура
 
 - `domain`: инварианты и агрегаты

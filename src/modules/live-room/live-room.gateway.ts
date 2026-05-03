@@ -5,7 +5,7 @@ import {
   OnGatewayConnection,
   SubscribeMessage,
   WebSocketGateway,
-  WebSocketServer,
+  WebSocketServer
 } from '@nestjs/websockets';
 import { ConfigService } from '@nestjs/config';
 import { Server, Socket } from 'socket.io';
@@ -15,8 +15,8 @@ import { AccessTokenVerifierPort } from '../../application/ports/access-token-ve
 @WebSocketGateway({
   namespace: '/ws/live',
   cors: {
-    origin: '*',
-  },
+    origin: '*'
+  }
 })
 export class LiveRoomGateway implements OnGatewayConnection {
   @WebSocketServer()
@@ -25,7 +25,7 @@ export class LiveRoomGateway implements OnGatewayConnection {
   constructor(
     private readonly configService: ConfigService,
     @Inject('ACCESS_TOKEN_VERIFIER')
-    private readonly verifier: AccessTokenVerifierPort,
+    private readonly verifier: AccessTokenVerifierPort
   ) {}
 
   async handleConnection(client: Socket): Promise<void> {
@@ -36,7 +36,7 @@ export class LiveRoomGateway implements OnGatewayConnection {
     if (!rawToken) {
       client.emit('error', {
         code: 'token_required',
-        message: 'Для signaling требуется access token.',
+        message: 'Для signaling требуется access token.'
       });
       client.disconnect();
       return;
@@ -48,7 +48,7 @@ export class LiveRoomGateway implements OnGatewayConnection {
     if (!token) {
       client.emit('error', {
         code: 'token_invalid',
-        message: 'Некорректный access token.',
+        message: 'Некорректный access token.'
       });
       client.disconnect();
       return;
@@ -59,28 +59,22 @@ export class LiveRoomGateway implements OnGatewayConnection {
     } catch {
       client.emit('error', {
         code: 'token_invalid',
-        message: 'Некорректный access token.',
+        message: 'Некорректный access token.'
       });
       client.disconnect();
       return;
     }
 
-    const maxParticipants = this.configService.get<number>(
-      'liveClass.maxParticipants',
-      11,
-    );
+    const maxParticipants = this.configService.get<number>('liveClass.maxParticipants', 11);
     client.emit('signaling.ready', { maxParticipants });
   }
 
   @SubscribeMessage('room.join')
-  onJoin(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { roomId: string },
-  ): void {
+  onJoin(@ConnectedSocket() client: Socket, @MessageBody() payload: { roomId: string }): void {
     if (!payload?.roomId) {
       client.emit('error', {
         code: 'room_id_required',
-        message: 'roomId обязателен.',
+        message: 'roomId обязателен.'
       });
       return;
     }
@@ -98,19 +92,19 @@ export class LiveRoomGateway implements OnGatewayConnection {
       kind: 'offer' | 'answer' | 'ice';
       targetPeerId?: string;
       data: Record<string, unknown>;
-    },
+    }
   ): void {
     if (!payload?.roomId || !payload?.kind || !payload?.data) {
       client.emit('error', {
         code: 'invalid_signal_payload',
-        message: 'Невалидный signaling payload.',
+        message: 'Невалидный signaling payload.'
       });
       return;
     }
 
     client.to(payload.roomId).emit('webrtc.signal', {
       fromPeerId: client.id,
-      ...payload,
+      ...payload
     });
   }
 }

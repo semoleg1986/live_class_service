@@ -5,12 +5,8 @@ export interface LiveRoomRepositoryPort {
   save(
     room: LiveRoomSnapshot,
     expectedVersion: number | null,
-    events: LiveRoomEvent[],
+    events: LiveRoomEvent[]
   ): Promise<boolean>;
   getById(roomId: string): Promise<LiveRoomSnapshot | null>;
-  getEventsByRoomId(
-    roomId: string,
-    fromVersion?: number,
-    limit?: number,
-  ): Promise<LiveRoomEvent[]>;
+  getEventsByRoomId(roomId: string, fromVersion?: number, limit?: number): Promise<LiveRoomEvent[]>;
 }

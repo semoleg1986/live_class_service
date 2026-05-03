@@ -11,20 +11,18 @@ import {
   liveRoomsTable,
   outboxEventsTable,
   roomEventsTable,
-  roomParticipantsTable,
+  roomParticipantsTable
 } from './schema';
 
 @Injectable()
-export class PostgresLiveRoomRepository
-  implements LiveRoomRepositoryPort, OnModuleDestroy
-{
+export class PostgresLiveRoomRepository implements LiveRoomRepositoryPort, OnModuleDestroy {
   private readonly pool: Pool;
   private readonly db: NodePgDatabase;
 
   constructor(private readonly configService: ConfigService) {
     const connectionString = this.configService.get<string>(
       'liveClass.databaseUrl',
-      'postgresql://postgres:postgres@localhost:5432/live_class_service',
+      'postgresql://postgres:postgres@localhost:5432/live_class_service'
     );
     this.pool = new Pool({ connectionString });
     this.db = drizzle(this.pool);
@@ -37,7 +35,7 @@ export class PostgresLiveRoomRepository
   async save(
     room: LiveRoomSnapshot,
     expectedVersion: number | null,
-    events: LiveRoomEvent[],
+    events: LiveRoomEvent[]
   ): Promise<boolean> {
     return this.db.transaction(async (tx) => {
       let saved = false;
@@ -56,7 +54,7 @@ export class PostgresLiveRoomRepository
             createdAt: new Date(room.createdAt),
             updatedAt: new Date(room.updatedAt),
             startedAt: room.startedAt ? new Date(room.startedAt) : null,
-            endedAt: room.endedAt ? new Date(room.endedAt) : null,
+            endedAt: room.endedAt ? new Date(room.endedAt) : null
           })
           .onConflictDoNothing()
           .returning({ roomId: liveRoomsTable.roomId });
@@ -75,13 +73,10 @@ export class PostgresLiveRoomRepository
             createdAt: new Date(room.createdAt),
             updatedAt: new Date(room.updatedAt),
             startedAt: room.startedAt ? new Date(room.startedAt) : null,
-            endedAt: room.endedAt ? new Date(room.endedAt) : null,
+            endedAt: room.endedAt ? new Date(room.endedAt) : null
           })
           .where(
-            and(
-              eq(liveRoomsTable.roomId, room.roomId),
-              eq(liveRoomsTable.version, expectedVersion),
-            ),
+            and(eq(liveRoomsTable.roomId, room.roomId), eq(liveRoomsTable.version, expectedVersion))
           )
           .returning({ roomId: liveRoomsTable.roomId });
 
@@ -92,9 +87,7 @@ export class PostgresLiveRoomRepository
         return false;
       }
 
-      await tx
-        .delete(roomParticipantsTable)
-        .where(eq(roomParticipantsTable.roomId, room.roomId));
+      await tx.delete(roomParticipantsTable).where(eq(roomParticipantsTable.roomId, room.roomId));
 
       if (room.participants.length > 0) {
         await tx.insert(roomParticipantsTable).values(
@@ -102,8 +95,8 @@ export class PostgresLiveRoomRepository
             roomId: room.roomId,
             accountId: participant.accountId,
             role: participant.role,
-            joinedAt: new Date(participant.joinedAt),
-          })),
+            joinedAt: new Date(participant.joinedAt)
+          }))
         );
       }
 
@@ -116,8 +109,8 @@ export class PostgresLiveRoomRepository
             eventType: event.eventType,
             actorAccountId: event.actorAccountId,
             occurredAt: new Date(event.occurredAt),
-            payload: event.payload,
-          })),
+            payload: event.payload
+          }))
         );
 
         await tx.insert(outboxEventsTable).values(
@@ -131,9 +124,9 @@ export class PostgresLiveRoomRepository
               eventType: event.eventType,
               actorAccountId: event.actorAccountId,
               occurredAt: event.occurredAt,
-              payload: event.payload,
-            },
-          })),
+              payload: event.payload
+            }
+          }))
         );
       }
 
@@ -174,23 +167,20 @@ export class PostgresLiveRoomRepository
       participants: participants.map((item) => ({
         accountId: item.accountId,
         role: item.role,
-        joinedAt: item.joinedAt.toISOString(),
-      })),
+        joinedAt: item.joinedAt.toISOString()
+      }))
     };
   }
 
   async getEventsByRoomId(
     roomId: string,
     fromVersion?: number,
-    limit = 100,
+    limit = 100
   ): Promise<LiveRoomEvent[]> {
     const predicate =
       fromVersion === undefined
         ? eq(roomEventsTable.roomId, roomId)
-        : and(
-            eq(roomEventsTable.roomId, roomId),
-            gte(roomEventsTable.roomVersion, fromVersion),
-          );
+        : and(eq(roomEventsTable.roomId, roomId), gte(roomEventsTable.roomVersion, fromVersion));
 
     const rows = await this.db
       .select()
@@ -206,7 +196,7 @@ export class PostgresLiveRoomRepository
       eventType: item.eventType as LiveRoomEvent['eventType'],
       actorAccountId: item.actorAccountId,
       occurredAt: item.occurredAt.toISOString(),
-      payload: item.payload,
+      payload: item.payload
     }));
   }
 }

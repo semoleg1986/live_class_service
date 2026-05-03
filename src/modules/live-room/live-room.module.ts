@@ -7,6 +7,6 @@ import { LiveRoomService } from './live-room.service';
 
 @Module({
   controllers: [LiveRoomController],
-  providers: [...liveRoomProviders, LiveRoomService, LiveRoomGateway],
+  providers: [...liveRoomProviders, LiveRoomService, LiveRoomGateway]
 })
 export class LiveRoomModule {}

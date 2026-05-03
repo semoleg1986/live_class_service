@@ -1,12 +1,12 @@
 {
   "moduleFileExtensions": ["js", "json", "ts"],
-  "rootDir": ".",
+  "rootDir": "../..",
   "testEnvironment": "node",
-  "testRegex": ".*\\.e2e-spec\\.ts$",
+  "testRegex": "tests/integration/.*\\.integration-spec\\.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
   "moduleNameMapper": {
-    "^jose$": "<rootDir>/mocks/jose.ts"
+    "^jose$": "<rootDir>/tests/integration/mocks/jose.ts"
   }
 }
