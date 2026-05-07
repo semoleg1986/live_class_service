@@ -18,6 +18,7 @@ export type LiveClassConfig = {
   turnUrl: string;
   turnUsername: string;
   turnPassword: string;
+  metricsToken: string;
   rateLimit: {
     joinMax: number;
     joinWindowSeconds: number;
@@ -67,6 +68,7 @@ export default (): { liveClass: LiveClassConfig } => ({
     turnUrl: process.env.LIVE_CLASS_TURN_URL ?? 'turn:localhost:3478',
     turnUsername: process.env.LIVE_CLASS_TURN_USERNAME ?? 'turn-user',
     turnPassword: process.env.LIVE_CLASS_TURN_PASSWORD ?? 'turn-password',
+    metricsToken: process.env.LIVE_CLASS_METRICS_TOKEN ?? '',
     rateLimit: {
       joinMax: parseIntOrDefault(process.env.LIVE_CLASS_RATE_LIMIT_JOIN_MAX, 20),
       joinWindowSeconds: parseIntOrDefault(
