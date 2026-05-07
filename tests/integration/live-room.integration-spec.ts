@@ -60,42 +60,47 @@ function asUser(app: INestApplication, accountId: string, roles: string[]) {
   };
 }
 
+async function createTestApp(): Promise<INestApplication> {
+  process.env.LIVE_CLASS_USE_INMEMORY = '1';
+
+  const moduleRef = await Test.createTestingModule({
+    imports: [AppModule]
+  })
+    .overrideGuard(BearerAuthGuard)
+    .useClass(FakeBearerAuthGuard)
+    .overrideProvider('COURSE_ACCESS_CHECKER')
+    .useValue({
+      ensureCanJoinCourse: async (input: { actorAccountId: string }) => {
+        if (input.actorAccountId === 'student-denied') {
+          throw new ApplicationAccessDeniedError(
+            'Нет активного доступа к курсу для входа в live-комнату.'
+          );
+        }
+      }
+    } satisfies CourseAccessCheckerPort)
+    .compile();
+
+  const app = moduleRef.createNestApplication();
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true
+    })
+  );
+  installHttpObservability(app);
+  app.useGlobalFilters(new ApplicationErrorFilter());
+  await app.init();
+  return app;
+}
+
 const describeIntegration = process.env.RUN_INTEGRATION === '1' ? describe : describe.skip;
 
 describeIntegration('LiveRoomController (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    process.env.LIVE_CLASS_USE_INMEMORY = '1';
-
-    const moduleRef = await Test.createTestingModule({
-      imports: [AppModule]
-    })
-      .overrideGuard(BearerAuthGuard)
-      .useClass(FakeBearerAuthGuard)
-      .overrideProvider('COURSE_ACCESS_CHECKER')
-      .useValue({
-        ensureCanJoinCourse: async (input: { actorAccountId: string }) => {
-          if (input.actorAccountId === 'student-denied') {
-            throw new ApplicationAccessDeniedError(
-              'Нет активного доступа к курсу для входа в live-комнату.'
-            );
-          }
-        }
-      } satisfies CourseAccessCheckerPort)
-      .compile();
-
-    app = moduleRef.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({
-        transform: true,
-        whitelist: true,
-        forbidNonWhitelisted: true
-      })
-    );
-    installHttpObservability(app);
-    app.useGlobalFilters(new ApplicationErrorFilter());
-    await app.init();
+    app = await createTestApp();
   });
 
   afterAll(async () => {
@@ -304,5 +309,99 @@ describeIntegration('LiveRoomController (e2e)', () => {
 
     expect(response.headers['x-request-id']).toBe('req-live-create-001');
     expect(response.headers['x-correlation-id']).toBe('corr-live-create-001');
+  });
+});
+
+describeIntegration('LiveRoomController rate limiting (e2e)', () => {
+  let app: INestApplication;
+  const originalEnv = {
+    joinMax: process.env.LIVE_CLASS_RATE_LIMIT_JOIN_MAX,
+    joinWindowSeconds: process.env.LIVE_CLASS_RATE_LIMIT_JOIN_WINDOW_SECONDS,
+    leaveMax: process.env.LIVE_CLASS_RATE_LIMIT_LEAVE_MAX,
+    leaveWindowSeconds: process.env.LIVE_CLASS_RATE_LIMIT_LEAVE_WINDOW_SECONDS,
+    attendanceMax: process.env.LIVE_CLASS_RATE_LIMIT_ATTENDANCE_MAX,
+    attendanceWindowSeconds: process.env.LIVE_CLASS_RATE_LIMIT_ATTENDANCE_WINDOW_SECONDS
+  };
+
+  beforeAll(async () => {
+    process.env.LIVE_CLASS_RATE_LIMIT_JOIN_MAX = '1';
+    process.env.LIVE_CLASS_RATE_LIMIT_JOIN_WINDOW_SECONDS = '60';
+    process.env.LIVE_CLASS_RATE_LIMIT_LEAVE_MAX = '1';
+    process.env.LIVE_CLASS_RATE_LIMIT_LEAVE_WINDOW_SECONDS = '60';
+    process.env.LIVE_CLASS_RATE_LIMIT_ATTENDANCE_MAX = '1';
+    process.env.LIVE_CLASS_RATE_LIMIT_ATTENDANCE_WINDOW_SECONDS = '60';
+    app = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+
+    process.env.LIVE_CLASS_RATE_LIMIT_JOIN_MAX = originalEnv.joinMax;
+    process.env.LIVE_CLASS_RATE_LIMIT_JOIN_WINDOW_SECONDS = originalEnv.joinWindowSeconds;
+    process.env.LIVE_CLASS_RATE_LIMIT_LEAVE_MAX = originalEnv.leaveMax;
+    process.env.LIVE_CLASS_RATE_LIMIT_LEAVE_WINDOW_SECONDS = originalEnv.leaveWindowSeconds;
+    process.env.LIVE_CLASS_RATE_LIMIT_ATTENDANCE_MAX = originalEnv.attendanceMax;
+    process.env.LIVE_CLASS_RATE_LIMIT_ATTENDANCE_WINDOW_SECONDS =
+      originalEnv.attendanceWindowSeconds;
+  });
+
+  it('возвращает 429 при повторном join одного и того же account в окне лимита', async () => {
+    const firstRoom = await asUser(app, 'teacher-rl-join', ['teacher'])
+      .post('/v1/live/rooms')
+      .send({
+        courseId: 'course-rl-join-1',
+        lessonId: 'lesson-rl-join-1'
+      })
+      .expect(201);
+
+    const secondRoom = await asUser(app, 'teacher-rl-join', ['teacher'])
+      .post('/v1/live/rooms')
+      .send({
+        courseId: 'course-rl-join-2',
+        lessonId: 'lesson-rl-join-2'
+      })
+      .expect(201);
+
+    await asUser(app, 'student-rl-join', ['student'])
+      .post(`/v1/live/rooms/${firstRoom.body.roomId}/join`)
+      .send({ expectedVersion: 1 })
+      .expect(201);
+
+    const limited = await asUser(app, 'student-rl-join', ['student'])
+      .post(`/v1/live/rooms/${secondRoom.body.roomId}/join`)
+      .set('X-Request-ID', 'req-live-rl-join-001')
+      .set('X-Correlation-ID', 'corr-live-rl-join-001')
+      .send({ expectedVersion: 1 })
+      .expect(429);
+
+    expect(limited.body.message).toBe('Слишком много запросов, попробуйте позже.');
+    expect(limited.body.request_id).toBe('req-live-rl-join-001');
+    expect(limited.body.correlation_id).toBe('corr-live-rl-join-001');
+  });
+
+  it('возвращает 429 при повторном чтении attendance в окне лимита', async () => {
+    const createResponse = await asUser(app, 'teacher-rl-attendance', ['teacher'])
+      .post('/v1/live/rooms')
+      .send({
+        courseId: 'course-rl-attendance',
+        lessonId: 'lesson-rl-attendance'
+      })
+      .expect(201);
+
+    const roomId = createResponse.body.roomId as string;
+
+    await asUser(app, 'teacher-rl-attendance', ['teacher'])
+      .get(`/v1/live/rooms/${roomId}/attendance`)
+      .expect(200);
+
+    const limited = await asUser(app, 'teacher-rl-attendance', ['teacher'])
+      .get(`/v1/live/rooms/${roomId}/attendance`)
+      .set('X-Request-ID', 'req-live-rl-attendance-001')
+      .set('X-Correlation-ID', 'corr-live-rl-attendance-001')
+      .expect(429);
+
+    expect(limited.body.message).toBe('Слишком много запросов, попробуйте позже.');
+    expect(limited.body.request_id).toBe('req-live-rl-attendance-001');
+    expect(limited.body.correlation_id).toBe('corr-live-rl-attendance-001');
   });
 });

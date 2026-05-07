@@ -12,6 +12,8 @@ import { KickFromRoomDto } from './dto/kick-from-room.dto';
 import { LeaveRoomDto } from './dto/leave-room.dto';
 import { LiveRoomService } from './live-room.service';
 import { LiveRoomSnapshot, RoomAttendanceRecord } from '../../domain/live-room/live-room.types';
+import { LiveRoomRateLimit } from '../common/rate-limit.decorator';
+import { LiveRoomRateLimitGuard } from '../common/rate-limit.guard';
 
 @Controller('/v1/live/rooms')
 @UseGuards(BearerAuthGuard)
@@ -41,6 +43,8 @@ export class LiveRoomController {
   }
 
   @Get(':roomId/attendance')
+  @UseGuards(LiveRoomRateLimitGuard)
+  @LiveRoomRateLimit('attendance')
   async getRoomAttendance(
     @Param('roomId') roomId: string,
     @CurrentUser() user: AuthUser
@@ -49,6 +53,8 @@ export class LiveRoomController {
   }
 
   @Post(':roomId/join')
+  @UseGuards(LiveRoomRateLimitGuard)
+  @LiveRoomRateLimit('join')
   async joinRoom(
     @Param('roomId') roomId: string,
     @Body() dto: JoinRoomDto,
@@ -58,6 +64,8 @@ export class LiveRoomController {
   }
 
   @Post(':roomId/leave')
+  @UseGuards(LiveRoomRateLimitGuard)
+  @LiveRoomRateLimit('leave')
   async leaveRoom(
     @Param('roomId') roomId: string,
     @Body() dto: LeaveRoomDto,

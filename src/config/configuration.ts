@@ -18,6 +18,14 @@ export type LiveClassConfig = {
   turnUrl: string;
   turnUsername: string;
   turnPassword: string;
+  rateLimit: {
+    joinMax: number;
+    joinWindowSeconds: number;
+    leaveMax: number;
+    leaveWindowSeconds: number;
+    attendanceMax: number;
+    attendanceWindowSeconds: number;
+  };
 };
 
 function parseIntOrDefault(raw: string | undefined, fallback: number): number {
@@ -58,6 +66,23 @@ export default (): { liveClass: LiveClassConfig } => ({
       'postgresql://postgres:postgres@localhost:5432/live_class_service',
     turnUrl: process.env.LIVE_CLASS_TURN_URL ?? 'turn:localhost:3478',
     turnUsername: process.env.LIVE_CLASS_TURN_USERNAME ?? 'turn-user',
-    turnPassword: process.env.LIVE_CLASS_TURN_PASSWORD ?? 'turn-password'
+    turnPassword: process.env.LIVE_CLASS_TURN_PASSWORD ?? 'turn-password',
+    rateLimit: {
+      joinMax: parseIntOrDefault(process.env.LIVE_CLASS_RATE_LIMIT_JOIN_MAX, 20),
+      joinWindowSeconds: parseIntOrDefault(
+        process.env.LIVE_CLASS_RATE_LIMIT_JOIN_WINDOW_SECONDS,
+        60
+      ),
+      leaveMax: parseIntOrDefault(process.env.LIVE_CLASS_RATE_LIMIT_LEAVE_MAX, 30),
+      leaveWindowSeconds: parseIntOrDefault(
+        process.env.LIVE_CLASS_RATE_LIMIT_LEAVE_WINDOW_SECONDS,
+        60
+      ),
+      attendanceMax: parseIntOrDefault(process.env.LIVE_CLASS_RATE_LIMIT_ATTENDANCE_MAX, 60),
+      attendanceWindowSeconds: parseIntOrDefault(
+        process.env.LIVE_CLASS_RATE_LIMIT_ATTENDANCE_WINDOW_SECONDS,
+        60
+      )
+    }
   }
 });
