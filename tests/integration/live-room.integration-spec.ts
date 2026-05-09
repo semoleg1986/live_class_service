@@ -289,6 +289,10 @@ describeIntegration('LiveRoomController (e2e)', () => {
   it('публикует live metrics endpoint', async () => {
     const response = await request(app.getHttpServer()).get('/metrics').expect(200);
 
+    expect(response.text).toContain('http_requests_total{service="live_class_service"');
+    expect(response.text).toContain(
+      'http_request_duration_seconds_sum{service="live_class_service"'
+    );
     expect(response.text).toContain('live_room_rooms_created_total');
     expect(response.text).toContain('live_room_participant_joins_total');
     expect(response.text).toContain('live_room_attendance_seconds_total');

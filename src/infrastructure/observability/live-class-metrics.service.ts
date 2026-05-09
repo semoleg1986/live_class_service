@@ -10,6 +10,39 @@ export class LiveClassMetricsService {
   private readonly gauges = new Map<string, number>();
   private readonly roomParticipantCounts = new Map<string, number>();
   private readonly roomOpenStates = new Map<string, number>();
+  private readonly requestDurationSums = new Map<string, number>();
+  private readonly requestDurationCounts = new Map<string, number>();
+
+  recordHttpRequest(input: {
+    method: string;
+    path: string;
+    status: number;
+    durationSeconds: number;
+  }): void {
+    const status = String(input.status);
+    this.increment('http_requests_total', {
+      service: 'live_class_service',
+      method: input.method,
+      path: input.path,
+      status
+    });
+    this.incrementDurationSummary(
+      'http_request_duration_seconds',
+      {
+        service: 'live_class_service',
+        method: input.method,
+        path: input.path
+      },
+      input.durationSeconds
+    );
+    if (input.status >= 400) {
+      this.increment('http_errors_total', {
+        service: 'live_class_service',
+        path: input.path,
+        status
+      });
+    }
+  }
 
   markRoomCreated(snapshot: LiveRoomSnapshot): void {
     this.increment('live_room_rooms_created_total');
@@ -86,6 +119,15 @@ export class LiveClassMetricsService {
 
   render(): string {
     const lines = [
+      '# HELP http_requests_total Total HTTP requests.',
+      '# TYPE http_requests_total counter',
+      this.renderMetricFamily('http_requests_total'),
+      '# HELP http_request_duration_seconds HTTP request latency in seconds.',
+      '# TYPE http_request_duration_seconds summary',
+      this.renderDurationSummary('http_request_duration_seconds'),
+      '# HELP http_errors_total Total HTTP error responses (status >= 400).',
+      '# TYPE http_errors_total counter',
+      this.renderMetricFamily('http_errors_total'),
       '# HELP live_room_rooms_created_total Total live rooms created.',
       '# TYPE live_room_rooms_created_total counter',
       this.renderMetric('live_room_rooms_created_total'),
@@ -136,6 +178,12 @@ export class LiveClassMetricsService {
     this.counters.set(key, (this.counters.get(key) ?? 0) + by);
   }
 
+  private incrementDurationSummary(name: string, labels: Labels, by: number): void {
+    const key = this.metricKey(name, labels);
+    this.requestDurationSums.set(key, (this.requestDurationSums.get(key) ?? 0) + by);
+    this.requestDurationCounts.set(key, (this.requestDurationCounts.get(key) ?? 0) + 1);
+  }
+
   private metricKey(name: string, labels: Labels): string {
     const serialized = Object.entries(labels)
       .sort(([left], [right]) => left.localeCompare(right))
@@ -172,6 +220,31 @@ export class LiveClassMetricsService {
           .join(',');
 
         return `${name}{${labels}} ${value}`;
+      });
+
+    return lines.join('\n');
+  }
+
+  private renderDurationSummary(name: string): string {
+    const lines = [...this.requestDurationSums.entries()]
+      .filter(([key]) => key === name || key.startsWith(`${name}|`))
+      .flatMap(([key, value]) => {
+        const count = this.requestDurationCounts.get(key) ?? 0;
+        if (key === name) {
+          return [`${name}_sum ${value}`, `${name}_count ${count}`];
+        }
+
+        const rawLabels = key.slice(name.length + 1);
+        const labels = rawLabels
+          .split(',')
+          .filter(Boolean)
+          .map((pair) => {
+            const [label, rawValue] = pair.split('=');
+            return `${label}="${rawValue}"`;
+          })
+          .join(',');
+
+        return [`${name}_sum{${labels}} ${value}`, `${name}_count{${labels}} ${count}`];
       });
 
     return lines.join('\n');
