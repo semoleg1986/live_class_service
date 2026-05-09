@@ -106,9 +106,15 @@ export class LiveRoomRateLimitGuard implements CanActivate {
       return accountId;
     }
 
-    const forwardedFor = request.headers['x-forwarded-for'];
-    if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
-      return forwardedFor.split(',')[0].trim();
+    const trustXForwardedFor = this.configService.get<boolean>(
+      'liveClass.trustXForwardedFor',
+      false
+    );
+    if (trustXForwardedFor) {
+      const forwardedFor = request.headers['x-forwarded-for'];
+      if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
+        return forwardedFor.split(',')[0].trim();
+      }
     }
 
     if (request.ip) {
