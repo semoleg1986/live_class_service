@@ -1,55 +1,60 @@
 # live_class_service
 
-Скелет сервиса live-занятий для образовательной платформы.
+Live room and attendance service.
 
-## Технологии
+## Responsibility
 
-- NestJS (HTTP + WebSocket signaling)
-- mediasoup (планируемый SFU слой)
-- PostgreSQL (метаданные комнат/уроков)
-- Redis (presence, pub/sub, scaling)
+`live_class_service` owns:
+- live room lifecycle
+- participant join/leave
+- lesson attendance
+- live access checks around course/lesson participation
 
-## MVP ограничения
+## Local run
 
-- 1 преподаватель + до 10 учеников
-- максимум 11 участников в комнате
-- room lifecycle: create -> active -> closed
-
-## Быстрый старт
-
+### Install
 ```bash
-cp .env.local.example .env
 npm install
+```
+
+### Run
+```bash
 npm run start:dev
 ```
 
-Healthcheck:
-
+### Health
 ```bash
-curl http://localhost:8010/healthz
+curl -fsS http://127.0.0.1:8010/healthz
 ```
 
-Контракт live API и signaling: `docs/00-live-contract.md`.
+## Environment
 
-## Lint и Format
+- [live_class_service/.env.example](/Users/olegsemenov/Programming/curs/live_class_service/.env.example)
+- [live_class_service/.env.local.example](/Users/olegsemenov/Programming/curs/live_class_service/.env.local.example)
+
+Key variables:
+- `LIVE_CLASS_HTTP_PORT`
+- `LIVE_CLASS_AUTH_JWKS_URL`
+- `LIVE_CLASS_REDIS_URL`
+- `LIVE_CLASS_DATABASE_URL`
+- `LIVE_CLASS_TURN_URL`
+
+## Tests and quality
 
 ```bash
+npm test
 npm run lint
 npm run format:check
 ```
 
-Автоисправление:
+## Build and migrations
 
 ```bash
-npm run lint:fix
-npm run format
+npm run build
+npm run db:migrate
 ```
 
-## Структура
+## Documentation
 
-- `domain`: инварианты и агрегаты
-- `application`: use-cases и фасад
-- `infrastructure`: репозитории/di/config
-- `modules`: HTTP/WS адаптеры
-
-Подробно: `docs/01-architecture.md`.
+- [00-live-contract.md](/Users/olegsemenov/Programming/curs/live_class_service/docs/00-live-contract.md)
+- [01-architecture.md](/Users/olegsemenov/Programming/curs/live_class_service/docs/01-architecture.md)
